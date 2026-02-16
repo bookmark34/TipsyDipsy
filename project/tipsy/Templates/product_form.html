@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="mb-4">{{ action }} Product</h2>
+
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">Product name</label>
+                            {{ form.name }}
+                            <div class="text-danger small">{{ form.name.errors }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            {{ form.description }}
+                            <div class="text-danger small">{{ form.description.errors }}</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Price</label>
+                                {{ form.price }}
+                                <div class="text-danger small">{{ form.price.errors }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Stock</label>
+                                {{ form.stock }}
+                                <div class="text-danger small">{{ form.stock.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            {{ form.category }}
+                            <div class="text-danger small">{{ form.category.errors }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Product image</label>
+                            {{ form.image }}
+                            <div class="text-danger small">{{ form.image.errors }}</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-dark flex-grow-1" type="submit">{{ action }} Product</button>
+                            <a href="{% url 'vendor_dashboard' %}" class="btn btn-outline-secondary flex-grow-1">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-control-file {
+        border: 1px solid #ddd;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:focus {
+        border-color: #999;
+        box-shadow: 0 0 0 0.2rem rgba(0, 0, 0, 0.05);
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+        min-height: 120px;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        color: #333;
+    }
+</style>
+{% endblock %}
