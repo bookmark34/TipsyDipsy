@@ -1,32 +1,249 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="py-5">
-    <div class="container">
-        <div class="text-center">
-            <h1 class="mb-3 fw-600" style="font-size: 2.5rem;">Welcome to TipsyDipsy</h1>
-            <p class="text-muted mb-4" style="font-size: 1.1rem;">Your place to discover craft beverages</p>
+
+<!-- ========== HERO ========== -->
+<div class="td-hero">
+    <h1 class="td-animate">Welcome to <span>TipsyDipsy</span></h1>
+    <p class="td-animate td-animate-delay-1">Handpicked craft beverages from passionate local vendors, delivered right to your doorstep.</p>
+    <div class="mt-4 td-animate td-animate-delay-2">
+        {% if user.is_authenticated %}
+            {% if user.is_customer %}
+            <a href="{% url 'customer_dashboard' %}" class="btn btn-td-accent me-2" style="padding: 0.7rem 2rem;">
+                <i class="bi bi-shop me-1"></i> Browse Shop
+            </a>
+            {% else %}
+            <a href="{% url 'vendor_dashboard' %}" class="btn btn-td-accent me-2" style="padding: 0.7rem 2rem;">
+                <i class="bi bi-speedometer2 me-1"></i> Go to Dashboard
+            </a>
+            {% endif %}
+        {% else %}
+        <a href="{% url 'signup' %}" class="btn btn-td-accent me-2" style="padding: 0.7rem 2rem;">
+            <i class="bi bi-person-plus me-1"></i> Get Started
+        </a>
+        <a href="{% url 'login' %}" class="btn td-hero-outline-btn" style="padding: 0.7rem 2rem;">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========== ABOUT SECTION ========== -->
+<section class="td-about-section">
+    <div class="row align-items-center g-5">
+        <div class="col-lg-6">
+            <span class="td-label-tag">Who We Are</span>
+            <h2 class="td-section-title" style="margin-top: 0.5rem;">A Marketplace Built for Beverage Lovers</h2>
+            <p class="td-about-text">
+                TipsyDipsy connects you with independent beverage makers and craft vendors from across the region. 
+                Whether you're after a barrel-aged stout, a tropical IPA, small-batch kombucha, or artisan wine — 
+                we bring the best selections together in one place.
+            </p>
+            <p class="td-about-text">
+                Every product on our platform is listed by verified vendors who are passionate about what they brew, 
+                blend, and bottle. We handle the storefront, they handle the craft.
+            </p>
+            <div class="d-flex flex-wrap gap-3 mt-4">
+                <div class="td-about-chip">
+                    <i class="bi bi-shield-check"></i> Verified Vendors
+                </div>
+                <div class="td-about-chip">
+                    <i class="bi bi-truck"></i> Fast Delivery
+                </div>
+                <div class="td-about-chip">
+                    <i class="bi bi-star"></i> Quality Assured
+                </div>
+            </div>
         </div>
-        <h2 class="mb-4">Products</h2>
-        <div class="row">
-            {% for product in products %}
-            <div class="col-md-4 mb-4">
-                <div class="card product-card h-100">
-                    <a href="{% url 'product_detail' id=product.id %}">
-                        {% if product.image %}
-                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
-                        {% endif %}
-                    </a>
-                    <div class="card-body">
-                        <h5 class="card-title"><a href="{% url 'product_detail' id=product.id %}">{{ product.name }}</a></h5>
-                        <p class="card-text">{{ product.description|truncatechars:50 }}</p>
-                        <p class="card-text"><strong>Price:</strong> ${{ product.price }}</p>
-                        <a href="{% url 'product_detail' id=product.id %}" class="btn btn-primary">View Details</a>
+        <div class="col-lg-6">
+            <div class="td-about-visual">
+                <div class="td-about-icon-grid">
+                    <div class="td-about-icon-box">
+                        <i class="bi bi-cup-straw"></i>
+                        <span>Craft Beers</span>
+                    </div>
+                    <div class="td-about-icon-box">
+                        <i class="bi bi-cup-hot"></i>
+                        <span>Artisan Coffee</span>
+                    </div>
+                    <div class="td-about-icon-box">
+                        <i class="bi bi-droplet"></i>
+                        <span>Fresh Juices</span>
+                    </div>
+                    <div class="td-about-icon-box">
+                        <i class="bi bi-wine"></i>
+                        <span>Fine Wines</span>
                     </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
     </div>
-</div>
+</section>
+
+<!-- ========== HOW IT WORKS ========== -->
+<section class="td-how-section">
+    <h2 class="td-section-title text-center">How It Works</h2>
+    <div class="row g-4 mt-2">
+        <div class="col-md-4">
+            <div class="td-step-card td-animate td-animate-delay-1">
+                <div class="td-step-number">1</div>
+                <div class="td-step-icon"><i class="bi bi-search"></i></div>
+                <h5>Browse & Discover</h5>
+                <p>Explore our curated collection of beverages from local vendors. Filter by category, search by name, or just see what's new.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="td-step-card td-animate td-animate-delay-2">
+                <div class="td-step-number">2</div>
+                <div class="td-step-icon"><i class="bi bi-bag-plus"></i></div>
+                <h5>Add to Cart</h5>
+                <p>Found something you like? Add it to your cart. Mix and match from different vendors in a single order.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="td-step-card td-animate td-animate-delay-3">
+                <div class="td-step-number">3</div>
+                <div class="td-step-icon"><i class="bi bi-box-seam"></i></div>
+                <h5>Checkout & Enjoy</h5>
+                <p>Place your order and we'll make sure it reaches you. Track your order status from your account dashboard.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== CATEGORIES SECTION ========== -->
+{% if categories %}
+<section class="td-categories-section">
+    <h2 class="td-section-title text-center">Browse by Category</h2>
+    <div class="row g-3 mt-2 justify-content-center">
+        {% for category in categories %}
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{% url 'product_list' %}?category={{ category.id }}" class="td-category-tile">
+                <i class="bi bi-tag"></i>
+                <span>{{ category.name }}</span>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- ========== FEATURED PRODUCTS ========== -->
+<section class="td-products-section">
+    <h2 class="td-section-title">Featured Products</h2>
+
+    {% if products %}
+    <div class="row g-4">
+        {% for product in products %}
+        <div class="col-md-6 col-lg-3">
+            <div class="td-card h-100">
+                <div class="td-img-wrap">
+                    <a href="{% url 'product_detail' id=product.id %}">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" class="td-card-img w-100" alt="{{ product.name }}">
+                        {% else %}
+                        <div class="td-no-image">
+                            <i class="bi bi-image" style="font-size: 2rem;"></i>
+                        </div>
+                        {% endif %}
+                    </a>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{% url 'product_detail' id=product.id %}">{{ product.name }}</a>
+                    </h5>
+                    <p class="card-text">{{ product.description|truncatechars:50 }}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <span class="td-price">${{ product.price }}</span>
+                        <a href="{% url 'product_detail' id=product.id %}" class="btn btn-td-primary btn-sm">
+                            View <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{% url 'product_list' %}" class="btn btn-td-outline" style="padding: 0.6rem 2.5rem;">
+            View All Products <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+    {% else %}
+    <div class="td-empty">
+        <i class="bi bi-cup-straw"></i>
+        <h4>No products yet</h4>
+        <p>Check back soon — new craft beverages are on their way!</p>
+    </div>
+    {% endif %}
+</section>
+
+<!-- ========== WHY CHOOSE US ========== -->
+<section class="td-why-section">
+    <div class="td-why-card">
+        <div class="row align-items-center">
+            <div class="col-lg-5">
+                <span class="td-label-tag td-label-tag-light">Why TipsyDipsy?</span>
+                <h2 style="font-family: 'Playfair Display', serif; color: var(--td-cream); font-size: 1.8rem; margin-top: 0.5rem;">
+                    More Than Just a Store
+                </h2>
+                <p style="color: rgba(255,255,255,0.7); line-height: 1.7; margin-top: 1rem;">
+                    We're building a community around craft beverages. Every purchase supports an independent vendor, 
+                    and every sip tells a story of passion and dedication.
+                </p>
+            </div>
+            <div class="col-lg-7">
+                <div class="row g-3 mt-3 mt-lg-0">
+                    <div class="col-sm-6">
+                        <div class="td-why-item">
+                            <i class="bi bi-people"></i>
+                            <h6>Support Local</h6>
+                            <p>Every order goes directly to independent makers and small businesses in your community.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="td-why-item">
+                            <i class="bi bi-hand-thumbs-up"></i>
+                            <h6>Handpicked Quality</h6>
+                            <p>Our vendors are vetted for quality. Only the best craft beverages make it to our shelves.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="td-why-item">
+                            <i class="bi bi-lightning"></i>
+                            <h6>Easy Ordering</h6>
+                            <p>Browse, add to cart, and checkout in minutes. We keep the experience simple and fast.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="td-why-item">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <h6>Order Tracking</h6>
+                            <p>Stay updated on your order status from the moment you place it until it's delivered.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== CTA SECTION ========== -->
+{% if not user.is_authenticated %}
+<section class="td-cta-section text-center">
+    <h2 class="td-section-title text-center">Ready to Explore?</h2>
+    <p style="color: var(--td-text-muted); max-width: 500px; margin: 0 auto 1.5rem; font-size: 1rem;">
+        Join TipsyDipsy today — whether you're a beverage lover looking for something new, 
+        or a vendor ready to share your craft with the world.
+    </p>
+    <a href="{% url 'signup' %}" class="btn btn-td-accent me-2" style="padding: 0.7rem 2.5rem;">
+        <i class="bi bi-person-plus me-1"></i> Create Account
+    </a>
+    <a href="{% url 'product_list' %}" class="btn btn-td-outline" style="padding: 0.7rem 2.5rem;">
+        Browse Products
+    </a>
+</section>
+{% endif %}
+
 {% endblock %}

@@ -1,75 +1,67 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">Order History</h2>
+<div class="py-2">
+    <h2 class="td-section-title">Order History</h2>
 
     {% if orders %}
-    <div class="row">
-        {% for order in orders %}
-        <div class="col-12 mb-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>Order #{{ order.id }}</strong>
-                            <span class="text-muted ms-3">{{ order.created_at|date:"M d, Y" }}</span>
-                        </div>
-                        <div>
-                            {% if order.status == 'Pending' %}
-                            <span class="badge bg-warning text-dark">{{ order.status }}</span>
-                            {% elif order.status == 'Confirmed' %}
-                            <span class="badge bg-info">{{ order.status }}</span>
-                            {% elif order.status == 'Delivered' %}
-                            <span class="badge bg-success">{{ order.status }}</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ order.status }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Product</th>
-                                    <th class="text-center">Quantity</th>
-                                    <th class="text-center">Price</th>
-                                    <th class="text-center">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in order.orderitem_set.all %}
-                                <tr>
-                                    <td>{{ item.product.name }}</td>
-                                    <td class="text-center">{{ item.quantity }}</td>
-                                    <td class="text-center">${{ item.price }}</td>
-                                    <td class="text-center">${{ item.subtotal }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-white py-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted">Total Items: {{ order.orderitem_set.count }}</span>
-                        <strong class="h5 mb-0">Total: ${{ order.total_price }}</strong>
-                    </div>
-                </div>
+    {% for order in orders %}
+    <div class="td-order-card">
+        <div class="td-order-header">
+            <div>
+                <span class="td-order-id">Order #{{ order.id }}</span>
+                <span class="td-order-date"><i class="bi bi-calendar3 me-1"></i>{{ order.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div>
+                {% if order.status == 'Pending' %}
+                <span class="td-badge td-badge-pending">{{ order.status }}</span>
+                {% elif order.status == 'Confirmed' %}
+                <span class="td-badge td-badge-confirmed">{{ order.status }}</span>
+                {% elif order.status == 'Delivered' %}
+                <span class="td-badge td-badge-delivered">{{ order.status }}</span>
+                {% else %}
+                <span class="td-badge td-badge-out">{{ order.status }}</span>
+                {% endif %}
             </div>
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="text-center py-5">
-        <div class="mb-4">
-            <i class="bi bi-bag-x" style="font-size: 4rem; color: #ccc;"></i>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table td-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Product</th>
+                            <th class="text-center">Quantity</th>
+                            <th class="text-center">Price</th>
+                            <th class="text-center">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order.orderitem_set.all %}
+                        <tr>
+                            <td class="ps-4">{{ item.product.name }}</td>
+                            <td class="text-center">{{ item.quantity }}</td>
+                            <td class="text-center">${{ item.price }}</td>
+                            <td class="text-center" style="font-weight: 600;">${{ item.subtotal }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <h4 class="text-muted">No orders yet</h4>
-        <p class="text-muted mb-4">You haven't placed any orders yet.</p>
-        <a href="{% url 'customer_dashboard' %}" class="btn btn-dark">Start Shopping</a>
+        <div class="td-order-footer">
+            <span style="color: var(--td-text-muted); font-size: 0.85rem;">{{ order.orderitem_set.count }} item{{ order.orderitem_set.count|pluralize }}</span>
+            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">Total: ${{ order.total_price }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="td-empty">
+        <i class="bi bi-bag-x"></i>
+        <h4>No orders yet</h4>
+        <p>You haven't placed any orders yet.</p>
+        <a href="{% url 'customer_dashboard' %}" class="btn btn-td-primary">
+            <i class="bi bi-shop me-1"></i> Start Shopping
+        </a>
     </div>
     {% endif %}
 </div>

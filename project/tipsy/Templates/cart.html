@@ -1,59 +1,61 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">Shopping Cart</h2>
+<div class="py-2">
+    <h2 class="td-section-title">Shopping Cart</h2>
 
     {% if cart_items %}
-    <div class="row">
+    <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="td-card">
                 <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead class="bg-light">
+                    <table class="table td-table mb-0">
+                        <thead>
                             <tr>
-                                <th class="border-0 py-3 ps-4">Product</th>
-                                <th class="border-0 py-3 text-center">Price</th>
-                                <th class="border-0 py-3 text-center">Quantity</th>
-                                <th class="border-0 py-3 text-center">Total</th>
-                                <th class="border-0 py-3 text-center">Action</th>
+                                <th class="ps-4">Product</th>
+                                <th class="text-center">Price</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-center">Total</th>
+                                <th class="text-center" style="width: 60px;"></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in cart_items %}
                             <tr>
-                                <td class="py-3 ps-4">
+                                <td class="ps-4">
                                     <div class="d-flex align-items-center">
                                         {% if item.product.image %}
-                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="td-cart-thumb me-3">
                                         {% else %}
-                                        <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                            <span class="text-muted small">No img</span>
+                                        <div class="td-cart-thumb-placeholder me-3">
+                                            <i class="bi bi-image"></i>
                                         </div>
                                         {% endif %}
                                         <div>
-                                            <h6 class="mb-0">{{ item.product.name }}</h6>
+                                            <h6 class="mb-0" style="font-size: 0.92rem; font-weight: 600;">{{ item.product.name }}</h6>
                                             {% if item.product.category %}
-                                            <small class="text-muted">{{ item.product.category.name }}</small>
+                                            <small style="color: var(--td-text-muted); font-size: 0.78rem;">{{ item.product.category.name }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </td>
-                                <td class="py-3 text-center align-middle">${{ item.product.price }}</td>
-                                <td class="py-3 text-center align-middle">
+                                <td class="text-center align-middle">${{ item.product.price }}</td>
+                                <td class="text-center align-middle">
                                     <form method="POST" action="{% url 'update_cart' item.id %}" class="d-inline">
                                         {% csrf_token %}
-                                        <div class="input-group input-group-sm" style="width: 100px; margin: 0 auto;">
-                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control text-center">
-                                            <button type="submit" class="btn btn-outline-secondary">
+                                        <div class="input-group td-qty-input">
+                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control">
+                                            <button type="submit" class="btn">
                                                 <i class="bi bi-arrow-repeat"></i>
                                             </button>
                                         </div>
                                     </form>
                                 </td>
-                                <td class="py-3 text-center align-middle fw-bold">${{ item.subtotal }}</td>
-                                <td class="py-3 text-center align-middle">
-                                    <a href="{% url 'remove_from_cart' item.id %}" class="btn btn-outline-danger btn-sm">
+                                <td class="text-center align-middle">
+                                    <strong style="color: var(--td-espresso);">${{ item.subtotal }}</strong>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <a href="{% url 'remove_from_cart' item.id %}" class="btn btn-td-danger btn-sm" style="padding: 0.3rem 0.55rem;">
                                         <i class="bi bi-trash"></i>
                                     </a>
                                 </td>
@@ -66,36 +68,38 @@
         </div>
         
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title mb-4">Order Summary</h5>
-                    
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Items ({{ cart_items|length }})</span>
-                        <span>${{ total_price }}</span>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="d-flex justify-content-between mb-4">
-                        <strong>Total</strong>
-                        <strong class="h5 mb-0">${{ total_price }}</strong>
-                    </div>
-                    
-                    <a href="{% url 'checkout' %}" class="btn btn-dark w-100 mb-2">Proceed to Checkout</a>
-                    <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary w-100">Continue Shopping</a>
+            <div class="td-summary-card">
+                <h5><i class="bi bi-receipt me-2"></i>Order Summary</h5>
+                
+                <div class="td-summary-row">
+                    <span>Items ({{ cart_items|length }})</span>
+                    <span>${{ total_price }}</span>
+                </div>
+                
+                <div class="td-summary-total">
+                    <strong>Total</strong>
+                    <strong>${{ total_price }}</strong>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{% url 'checkout' %}" class="btn btn-td-primary w-100 mb-2">
+                        <i class="bi bi-lock me-1"></i> Proceed to Checkout
+                    </a>
+                    <a href="{% url 'customer_dashboard' %}" class="btn btn-td-outline w-100">
+                        <i class="bi bi-arrow-left me-1"></i> Continue Shopping
+                    </a>
                 </div>
             </div>
         </div>
     </div>
     {% else %}
-    <div class="text-center py-5">
-        <div class="mb-4">
-            <i class="bi bi-cart-x" style="font-size: 4rem; color: #ccc;"></i>
-        </div>
-        <h4 class="text-muted">Your cart is empty</h4>
-        <p class="text-muted mb-4">Looks like you haven't added any items to your cart yet.</p>
-        <a href="{% url 'customer_dashboard' %}" class="btn btn-dark">Start Shopping</a>
+    <div class="td-empty">
+        <i class="bi bi-bag-x"></i>
+        <h4>Your cart is empty</h4>
+        <p>Looks like you haven't added any items to your cart yet.</p>
+        <a href="{% url 'customer_dashboard' %}" class="btn btn-td-primary">
+            <i class="bi bi-shop me-1"></i> Start Shopping
+        </a>
     </div>
     {% endif %}
 </div>

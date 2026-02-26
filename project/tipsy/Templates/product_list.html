@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row">
+<div class="py-2">
+    <div class="row g-4">
         <!-- Sidebar with categories -->
-        <div class="col-md-3 mb-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0">Categories</h5>
+        <div class="col-md-3 mb-3">
+            <div class="td-category-sidebar">
+                <div class="td-cat-header">
+                    <i class="bi bi-grid me-1"></i> Categories
                 </div>
                 <div class="list-group list-group-flush">
                     <a href="{% url 'product_list' %}" class="list-group-item list-group-item-action {% if not request.GET.category %}active{% endif %}">
@@ -25,16 +25,15 @@
         
         <!-- Products Grid -->
         <div class="col-md-9">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">Products</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h2 class="td-section-title mb-0" style="padding-bottom: 0;">Products</h2>
                 
-                <!-- Search -->
-                <form method="GET" class="d-flex" style="max-width: 300px;">
+                <form method="GET" class="d-flex td-search" style="max-width: 300px;">
                     {% if request.GET.category %}
                     <input type="hidden" name="category" value="{{ request.GET.category }}">
                     {% endif %}
-                    <input type="text" name="search" class="form-control me-2" placeholder="Search products..." value="{{ request.GET.search }}">
-                    <button type="submit" class="btn btn-dark">Search</button>
+                    <input type="text" name="search" class="form-control" placeholder="Search products..." value="{{ request.GET.search }}">
+                    <button type="submit" class="btn btn-td-primary"><i class="bi bi-search"></i></button>
                 </form>
             </div>
             
@@ -42,46 +41,50 @@
             <div class="row g-4">
                 {% for product in products %}
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm">
-                        {% if product.image %}
-                        <a href="{% url 'product_detail' product.id %}">
-                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 180px; object-fit: cover;">
-                        </a>
-                        {% else %}
-                        <a href="{% url 'product_detail' product.id %}" class="text-decoration-none">
-                            <div class="bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
-                                <span class="text-muted">No image</span>
-                            </div>
-                        </a>
-                        {% endif %}
+                    <div class="td-card h-100">
+                        <div class="td-img-wrap">
+                            {% if product.image %}
+                            <a href="{% url 'product_detail' product.id %}">
+                                <img src="{{ product.image.url }}" class="td-card-img w-100" alt="{{ product.name }}" style="height: 180px;">
+                            </a>
+                            {% else %}
+                            <a href="{% url 'product_detail' product.id %}" class="text-decoration-none">
+                                <div class="td-no-image" style="height: 180px;">
+                                    <i class="bi bi-image" style="font-size: 1.5rem;"></i>
+                                </div>
+                            </a>
+                            {% endif %}
+                        </div>
                         
                         <div class="card-body">
                             <h6 class="card-title">
-                                <a href="{% url 'product_detail' product.id %}" class="text-dark text-decoration-none">{{ product.name }}</a>
+                                <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
                             </h6>
                             {% if product.category %}
-                            <small class="text-muted">{{ product.category.name }}</small>
+                            <small style="color: var(--td-text-muted); font-size: 0.78rem;">{{ product.category.name }}</small>
                             {% endif %}
                             
                             <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="h6 mb-0">${{ product.price }}</span>
+                                <span class="td-price" style="font-size: 1rem;">${{ product.price }}</span>
                                 {% if product.stock > 0 %}
-                                <span class="badge bg-success">In Stock</span>
+                                <span class="td-badge td-badge-stock">In Stock</span>
                                 {% else %}
-                                <span class="badge bg-secondary">Out of Stock</span>
+                                <span class="td-badge td-badge-out">Out of Stock</span>
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="card-footer bg-white border-0 pt-0">
+                        <div class="card-footer pt-0">
                             {% if user.is_authenticated and user.is_customer %}
                                 {% if product.stock > 0 %}
-                                <a href="{% url 'add_to_cart' product.id %}" class="btn btn-dark btn-sm w-100">Add to Cart</a>
+                                <a href="{% url 'add_to_cart' product.id %}" class="btn btn-td-primary btn-sm w-100">
+                                    <i class="bi bi-bag-plus me-1"></i> Add to Cart
+                                </a>
                                 {% else %}
-                                <button class="btn btn-secondary btn-sm w-100" disabled>Out of Stock</button>
+                                <button class="btn btn-td-outline btn-sm w-100" disabled>Out of Stock</button>
                                 {% endif %}
                             {% else %}
-                                <a href="{% url 'product_detail' product.id %}" class="btn btn-outline-dark btn-sm w-100">View Details</a>
+                                <a href="{% url 'product_detail' product.id %}" class="btn btn-td-outline btn-sm w-100">View Details</a>
                             {% endif %}
                         </div>
                     </div>
@@ -89,9 +92,10 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="alert alert-light border text-center py-5">
-                <h5 class="text-muted">No products found</h5>
-                <p class="text-muted mb-0">Try adjusting your search or browse different categories.</p>
+            <div class="td-empty">
+                <i class="bi bi-search"></i>
+                <h4>No products found</h4>
+                <p>Try adjusting your search or browse different categories.</p>
             </div>
             {% endif %}
         </div>

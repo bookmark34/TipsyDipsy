@@ -1,13 +1,16 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5 mb-5">
     <div class="row justify-content-center">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-5">
-                    <h2 class="mb-4 fw-500">Log in</h2>
+        <div class="col-md-5 col-lg-4">
+            <div class="td-auth-card">
+                <div class="td-auth-header">
+                    <h2><i class="bi bi-cup-straw me-2"></i>Welcome back</h2>
+                    <p>Sign in to continue to TipsyDipsy</p>
+                </div>
 
+                <div class="td-auth-body td-form">
                     <form method="POST">
                         {% csrf_token %}
 
@@ -23,40 +26,17 @@
                             <div class="text-danger small">{{ form.password.errors }}</div>
                         </div>
 
-                        <button class="btn btn-dark w-100 py-2 mb-3" type="submit">
-                            Log in
+                        <button class="btn btn-td-primary w-100 py-2 mb-3" type="submit">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
                         </button>
 
-                        <p class="text-center text-muted small">
-                            Don't have an account? <a href="{% url 'signup' %}" class="text-decoration-none">Sign up</a>
-                        </p>
+                        <div class="td-auth-footer">
+                            Don't have an account? <a href="{% url 'signup' %}">Create one</a>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .form-control {
-        border: 1px solid #ddd;
-        padding: 0.6rem 0.75rem;
-        font-size: 0.95rem;
-    }
-    
-    .form-control:focus {
-        border-color: #999;
-        box-shadow: 0 0 0 0.2rem rgba(0, 0, 0, 0.05);
-    }
-    
-    .form-label {
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        color: #333;
-    }
-</style>
 {% endblock %}
-
-</body>
-
-</html>

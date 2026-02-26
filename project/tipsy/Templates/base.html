@@ -3,68 +3,79 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TipsyDipsy</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 
-<body class="d-flex flex-column min-vh-100">
+<body>
+<div class="td-page-wrap">
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+  <nav class="navbar navbar-expand-lg td-navbar">
     <div class="container">
 
-      <!-- Logo / Brand -->
-      <a class="navbar-brand fw-bold" href="{% url 'home' %}">
-        🍺 TipsyDipsy
+      <a class="navbar-brand" href="{% url 'home' %}">
+        <i class="bi bi-cup-straw"></i> TipsyDipsy
       </a>
 
-      <!-- Mobile Toggle Button -->
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <!-- Navbar Links -->
       <div class="collapse navbar-collapse" id="mainNavbar">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-1">
 
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'home' %}">Home</a>
+            <a class="nav-link" href="{% url 'home' %}"><i class="bi bi-house-door me-1"></i>Home</a>
           </li>
 
           {% if user.is_authenticated %}
             {% if user.is_vendor %}
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'vendor_dashboard' %}">Dashboard</a>
+              <a class="nav-link" href="{% url 'vendor_dashboard' %}"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'add_product' %}">Add Product</a>
+              <a class="nav-link" href="{% url 'vendor_orders' %}"><i class="bi bi-receipt me-1"></i>Orders</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'add_product' %}"><i class="bi bi-plus-circle me-1"></i>Add Product</a>
             </li>
             {% else %}
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'customer_dashboard' %}">Shop</a>
+              <a class="nav-link" href="{% url 'customer_dashboard' %}"><i class="bi bi-shop me-1"></i>Shop</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'view_cart' %}">Cart</a>
+              <a class="nav-link" href="{% url 'view_cart' %}"><i class="bi bi-bag me-1"></i>Cart</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'order_history' %}">Orders</a>
+              <a class="nav-link" href="{% url 'order_history' %}"><i class="bi bi-clock-history me-1"></i>Orders</a>
             </li>
             {% endif %}
 
-            <li class="nav-item ms-lg-3">
+            <li class="nav-item ms-lg-2">
               <form method="POST" action="{% url 'logout' %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                <button type="submit" class="btn btn-nav-logout">
+                  <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </button>
               </form>
             </li>
           {% else %}
-            <li class="nav-item ms-lg-3">
-              <a class="btn btn-warning text-dark fw-semibold" href="{% url 'login' %}">
-                Login
+            <li class="nav-item ms-lg-2">
+              <a class="btn btn-nav-login" href="{% url 'login' %}">
+                <i class="bi bi-person me-1"></i>Login
               </a>
             </li>
           {% endif %}
@@ -74,32 +85,38 @@
     </div>
   </nav>
 
-  <div class="container mt-4 flex-grow-1">
-    {% if messages %}
-    <div class="container">
-      {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  <div class="td-content">
+    <div class="container td-main">
+      {% if messages %}
+      <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
+      {% endif %}
+      
+      {% block content %}
+      {% endblock %}
     </div>
-    {% endif %}
-    
-    {% block content %}
-    {% endblock %}
   </div>
 
-  <footer class="bg-dark text-white text-center py-4 mt-auto">
-    <div class="container">
-      <p class="mb-1">&copy; 2026 TipsyDipsy. All rights reserved.</p>
-      <small>
-        <a href="#" class="text-white-50 text-decoration-none mx-2">Privacy Policy</a>
-        <span class="text-white-50">|</span>
-        <a href="#" class="text-white-50 text-decoration-none mx-2">Terms of Service</a>
-      </small>
+  <footer class="td-footer">
+    <div class="container text-center">
+      <div class="td-footer-brand"><i class="bi bi-cup-straw"></i> TipsyDipsy</div>
+      <p class="td-footer-tagline">Discover craft beverages, delivered to your door.</p>
+      <div class="td-footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">Contact Us</a>
+      </div>
+      <p class="td-footer-copy">&copy; 2026 TipsyDipsy. All rights reserved.</p>
     </div>
   </footer>
+
+</div>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

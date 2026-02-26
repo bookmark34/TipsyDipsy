@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     HomeView, ProductListView, ProductDetailView,
     SignUpView, UserLoginView, UserLogoutView,
-    VendorDashboardView, ProductCreateView, ProductUpdateView, ProductDeleteView,
+    VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
+    ProductCreateView, ProductUpdateView, ProductDeleteView,
     CustomerDashboardView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
     CheckoutView, OrderHistoryView
@@ -19,6 +20,8 @@ urlpatterns = [
     path("vendor/product/add/", ProductCreateView.as_view(), name="add_product"),
     path("vendor/product/<int:pk>/edit/", ProductUpdateView.as_view(), name="edit_product"),
     path("vendor/product/<int:pk>/delete/", ProductDeleteView.as_view(), name="delete_product"),
+    path("vendor/orders/", VendorOrdersView.as_view(), name="vendor_orders"),
+    path("vendor/orders/<int:order_id>/status/", VendorUpdateOrderStatusView.as_view(), name="vendor_update_order_status"),
     
     # Customer URLs
     path("shop/", CustomerDashboardView.as_view(), name="customer_dashboard"),

@@ -53,6 +53,9 @@ class HomeView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
+        context['total_products'] = Product.objects.count()
+        context['total_vendors'] = CustomUser.objects.filter(role='VENDOR').count()
+        context['total_categories'] = Category.objects.count()
         return context
 
 class ProductDetailView(DetailView):
@@ -73,6 +76,67 @@ class VendorDashboardView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return Product.objects.filter(vendor=self.request.user)
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorOrdersView(LoginRequiredMixin, View):
+    """Show all orders that contain products belonging to this vendor."""
+
+    def get(self, request, *args, **kwargs):
+        # Get all order items for this vendor's products
+        vendor_order_items = (
+            OrderItem.objects
+            .filter(product__vendor=request.user)
+            .select_related('order', 'order__user', 'product')
+            .order_by('-order__created_at')
+        )
+
+        # Group by order
+        orders_dict = {}
+        for item in vendor_order_items:
+            order = item.order
+            if order.id not in orders_dict:
+                orders_dict[order.id] = {
+                    'order': order,
+                    'customer': order.user,
+                    'items': [],
+                    'vendor_total': 0,
+                }
+            orders_dict[order.id]['items'].append(item)
+            orders_dict[order.id]['vendor_total'] += item.subtotal
+
+        vendor_orders = list(orders_dict.values())
+
+        return render(request, 'vendor_orders.html', {
+            'vendor_orders': vendor_orders,
+        })
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorUpdateOrderStatusView(LoginRequiredMixin, View):
+    """Allow vendor to update the status of an order."""
+
+    def post(self, request, order_id, *args, **kwargs):
+        order = get_object_or_404(Order, id=order_id)
+
+        # Verify this vendor has products in this order
+        has_items = OrderItem.objects.filter(
+            order=order, product__vendor=request.user
+        ).exists()
+
+        if not has_items:
+            messages.error(request, "You don't have permission to update this order.")
+            return redirect('vendor_orders')
+
+        new_status = request.POST.get('status')
+        if new_status in ['Pending', 'Confirmed', 'Delivered']:
+            order.status = new_status
+            order.save()
+            messages.success(request, f"Order #{order.id} status updated to {new_status}.")
+        else:
+            messages.error(request, "Invalid status.")
+
+        return redirect('vendor_orders')
 
 @method_decorator(vendor_required, name='dispatch')
 class ProductCreateView(LoginRequiredMixin, CreateView):

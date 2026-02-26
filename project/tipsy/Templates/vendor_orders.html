@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="py-2">
+    <h2 class="td-section-title">Customer Orders</h2>
+
+    {% if vendor_orders %}
+    {% for entry in vendor_orders %}
+    <div class="td-order-card">
+        <div class="td-order-header">
+            <div>
+                <span class="td-order-id">Order #{{ entry.order.id }}</span>
+                <span class="td-order-date">
+                    <i class="bi bi-calendar3 me-1"></i>{{ entry.order.created_at|date:"M d, Y · h:i A" }}
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if entry.order.status == 'Pending' %}
+                <span class="td-badge td-badge-pending">{{ entry.order.status }}</span>
+                {% elif entry.order.status == 'Confirmed' %}
+                <span class="td-badge td-badge-confirmed">{{ entry.order.status }}</span>
+                {% elif entry.order.status == 'Delivered' %}
+                <span class="td-badge td-badge-delivered">{{ entry.order.status }}</span>
+                {% else %}
+                <span class="td-badge td-badge-out">{{ entry.order.status }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="px-4 py-3" style="background: var(--td-cream); border-bottom: 1px solid var(--td-linen);">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--td-brown), var(--td-espresso)); display: flex; align-items: center; justify-content: center; color: var(--td-gold); font-weight: 700; font-size: 0.85rem; margin-right: 0.75rem;">
+                            {{ entry.customer.first_name|first }}{{ entry.customer.last_name|first }}
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.92rem; color: var(--td-brown);">
+                                {{ entry.customer.first_name }} {{ entry.customer.last_name }}
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--td-text-muted);">
+                                {{ entry.customer.email }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                    {% if entry.customer.phone_number %}
+                    <span style="font-size: 0.82rem; color: var(--td-text-muted);">
+                        <i class="bi bi-telephone me-1"></i>{{ entry.customer.phone_number }}
+                    </span>
+                    {% endif %}
+                    {% if entry.customer.address %}
+                    <span style="font-size: 0.82rem; color: var(--td-text-muted); margin-left: 1rem;">
+                        <i class="bi bi-geo-alt me-1"></i>{{ entry.customer.address }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Items (only this vendor's products) -->
+        <div class="card-body p-0">
+            <table class="table td-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Product</th>
+                        <th class="text-center">Price</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-center">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in entry.items %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="td-cart-thumb me-3" style="width: 42px; height: 42px;">
+                                {% else %}
+                                <div class="td-cart-thumb-placeholder me-3" style="width: 42px; height: 42px;">
+                                    <i class="bi bi-image"></i>
+                                </div>
+                                {% endif %}
+                                <span style="font-weight: 500;">{{ item.product.name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center align-middle">${{ item.price }}</td>
+                        <td class="text-center align-middle">{{ item.quantity }}</td>
+                        <td class="text-center align-middle" style="font-weight: 600; color: var(--td-espresso);">${{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer: total + status update -->
+        <div class="td-order-footer flex-wrap gap-2">
+            <div>
+                <span style="color: var(--td-text-muted); font-size: 0.85rem;">
+                    {{ entry.items|length }} item{{ entry.items|length|pluralize }} from your store
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">
+                    ${{ entry.vendor_total }}
+                </span>
+
+                <!-- Status Update Form -->
+                <form method="POST" action="{% url 'vendor_update_order_status' entry.order.id %}" class="d-flex align-items-center gap-2 mb-0">
+                    {% csrf_token %}
+                    <select name="status" class="form-select form-select-sm" style="width: auto; border-color: var(--td-beige); font-size: 0.82rem; border-radius: 6px;">
+                        <option value="Pending" {% if entry.order.status == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="Confirmed" {% if entry.order.status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
+                        <option value="Delivered" {% if entry.order.status == 'Delivered' %}selected{% endif %}>Delivered</option>
+                    </select>
+                    <button type="submit" class="btn btn-td-primary btn-sm" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
+                        Update
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="td-empty">
+        <i class="bi bi-inbox"></i>
+        <h4>No orders yet</h4>
+        <p>When customers order your products, they'll appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
