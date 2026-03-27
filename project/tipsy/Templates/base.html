@@ -42,7 +42,20 @@
           </li>
 
           {% if user.is_authenticated %}
-            {% if user.is_vendor %}
+            {% if user.is_admin %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'admin_dashboard' %}"><i class="bi bi-speedometer2 me-1"></i>Admin Dashboard</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'admin_vendors' %}"><i class="bi bi-person-badge me-1"></i>Vendors</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'admin_products' %}"><i class="bi bi-box-seam me-1"></i>Products</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'admin_customers' %}"><i class="bi bi-people me-1"></i>Customers</a>
+            </li>
+            {% elif user.is_vendor %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'vendor_dashboard' %}"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
             </li>

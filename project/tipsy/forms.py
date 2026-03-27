@@ -5,11 +5,16 @@ from django.contrib.auth.forms import AuthenticationForm
 
 
 class SignUpForm(UserCreationForm):
+    SIGNUP_ROLE_CHOICES = [
+        ('VENDOR', 'Vendor'),
+        ('CUSTOMER', 'Customer'),
+    ]
+
     email = forms.EmailField(required=True)
     address = forms.CharField(max_length=255, required=False)
     phone_number = forms.CharField(max_length=15, required=False)
     role = forms.ChoiceField(
-        choices=CustomUser.ROLE_CHOICES,
+        choices=SIGNUP_ROLE_CHOICES,
         widget=forms.RadioSelect,
         required=True,
         label="What are you signing up as?"
@@ -35,6 +40,13 @@ class SignUpForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
+    def clean_role(self):
+        role = self.cleaned_data.get('role')
+        allowed_roles = {choice[0] for choice in self.SIGNUP_ROLE_CHOICES}
+        if role not in allowed_roles:
+            raise forms.ValidationError('Invalid role selection.')
+        return role
 
     
 class LoginForm(AuthenticationForm):

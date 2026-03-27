@@ -1,7 +1,9 @@
 from django.urls import path
 from .views import (
     HomeView, ProductListView, ProductDetailView,
-    SignUpView, UserLoginView, UserLogoutView,
+    SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
+    AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView,
+    AdminProductsView, AdminOrdersView, AdminCustomersView,
     VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
     ProductCreateView, ProductUpdateView, ProductDeleteView,
     CustomerDashboardView,
@@ -14,6 +16,16 @@ urlpatterns = [
     path("signup/", SignUpView.as_view(), name="signup"),
     path("login/", UserLoginView.as_view(), name="login"),
     path("logout/", UserLogoutView.as_view(), name="logout"),
+    path("verify-email/<uidb64>/<token>/", EmailVerificationView.as_view(), name="verify_email"),
+
+    # Custom Admin URLs
+    path("control/dashboard/", AdminDashboardView.as_view(), name="admin_dashboard"),
+    path("control/vendors/", AdminVendorsView.as_view(), name="admin_vendors"),
+    path("control/vendors/<int:user_id>/approve/", AdminApproveVendorView.as_view(), name="admin_approve_vendor"),
+    path("control/vendors/<int:user_id>/reject/", AdminRejectVendorView.as_view(), name="admin_reject_vendor"),
+    path("control/products/", AdminProductsView.as_view(), name="admin_products"),
+    path("control/orders/", AdminOrdersView.as_view(), name="admin_orders"),
+    path("control/customers/", AdminCustomersView.as_view(), name="admin_customers"),
     
     # Vendor URLs
     path("vendor/dashboard/", VendorDashboardView.as_view(), name="vendor_dashboard"),

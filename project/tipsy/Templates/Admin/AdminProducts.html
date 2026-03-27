@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">All Products</h2>
+    <p class="text-muted mb-0">Track products listed by vendors.</p>
+  </div>
+  <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body">
+    {% if products %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Vendor</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+          <tr>
+            <td>{{ product.name }}</td>
+            <td>{{ product.vendor.username }}</td>
+            <td>{{ product.category.name|default:'-' }}</td>
+            <td>${{ product.price }}</td>
+            <td>{{ product.stock }}</td>
+            <td>{{ product.created_at|date:"M d, Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">No products available.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

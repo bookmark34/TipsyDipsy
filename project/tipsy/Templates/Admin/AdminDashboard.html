@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Admin Dashboard</h2>
+    <p class="text-muted mb-0">Platform overview and quick access to management pages.</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6 col-xl-3">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Total Users</h6>
+        <h3 class="mb-0">{{ total_users }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Total Vendors</h6>
+        <h3 class="mb-0">{{ total_vendors }}</h3>
+        <small class="text-warning">Pending: {{ pending_vendors }}</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Total Products</h6>
+        <h3 class="mb-0">{{ total_products }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6 col-xl-3">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h6 class="text-muted">Total Orders</h6>
+        <h3 class="mb-0">{{ total_orders }}</h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body">
+        <h5 class="mb-3">Vendor Approval Snapshot</h5>
+        <div class="d-flex justify-content-between mb-2">
+          <span>Pending</span><strong>{{ pending_vendors }}</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span>Approved</span><strong>{{ approved_vendors }}</strong>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span>Rejected</span><strong>{{ rejected_vendors }}</strong>
+        </div>
+        <a href="{% url 'admin_vendors' %}" class="btn btn-primary w-100 mt-3">Manage Vendors</a>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body">
+        <h5 class="mb-3">Recent Signups</h5>
+        {% if recent_signups %}
+        <ul class="list-group list-group-flush">
+          {% for user_obj in recent_signups %}
+          <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ user_obj.username }}</strong>
+              <div class="small text-muted">{{ user_obj.get_role_display }}</div>
+            </div>
+            <small class="text-muted">{{ user_obj.date_joined|date:"M d" }}</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">No recent signups.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

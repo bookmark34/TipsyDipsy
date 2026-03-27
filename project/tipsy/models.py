@@ -1,16 +1,34 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import UserManager
+
+
+class CustomUserManager(UserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields['role'] = 'ADMIN'
+        return super().create_superuser(username, email=email, password=password, **extra_fields)
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
         ('VENDOR', 'Vendor'),
         ('CUSTOMER', 'Customer'),
+        ('ADMIN', 'Admin'),
+    ]
+
+    VENDOR_STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
     ]
     
     address = models.CharField(max_length=255, blank=True, null=True)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='CUSTOMER')
+    vendor_status = models.CharField(max_length=10, choices=VENDOR_STATUS_CHOICES, default='PENDING')
+    email_verified = models.BooleanField(default=False)
+    email_verification_token = models.CharField(max_length=255, blank=True, null=True)
+    objects = CustomUserManager()
     
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
@@ -20,6 +38,12 @@ class CustomUser(AbstractUser):
     
     def is_customer(self):
         return self.role == 'CUSTOMER'
+
+    def is_admin(self):
+        return self.role == 'ADMIN' or self.is_superuser
+
+    def is_approved_vendor(self):
+        return self.is_vendor() and self.vendor_status == 'APPROVED'
 
 
 class Category(models.Model):

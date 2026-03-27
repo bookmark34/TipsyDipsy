@@ -1,16 +1,21 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from .forms import SignUpForm, LoginForm, ProductForm
 from .models import CustomUser, Product, Category, Cart, CartItem, Order, OrderItem
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.views import LoginView, LogoutView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
-from .decorators import vendor_required, customer_required
+from .decorators import vendor_required, customer_required, admin_required
 
 
 class SignUpView(CreateView):
@@ -20,18 +25,107 @@ class SignUpView(CreateView):
 
     def form_valid(self, form):
         user = form.save()
-        login(self.request, user)
         if user.is_vendor():
-            return redirect('vendor_dashboard')
-        else:
-            return redirect('customer_dashboard')
+            user.vendor_status = 'PENDING'
+            user.save(update_fields=['vendor_status'])
+            # Send vendor signup confirmation email
+            subject = 'Welcome to TipsyDipsy - Vendor Account Pending Review'
+            message = f"""Hello {user.first_name},
+
+Thank you for signing up as a vendor on TipsyDipsy!
+
+Your vendor account has been created with the following details:
+- Username: {user.username}
+- Email: {user.email}
+
+Your account is currently pending admin approval. Once approved, you will be able to log in and start adding your products.
+
+We will notify you via email once your account has been reviewed.
+
+Best regards,
+TipsyDipsy Team"""
+            send_mail(
+                subject,
+                message,
+                settings.EMAIL_HOST_USER,
+                [user.email],
+                fail_silently=True,
+            )
+            messages.info(
+                self.request,
+                'Vendor signup submitted. Please wait for admin approval before logging in. A confirmation email has been sent to your email address.'
+            )
+            return redirect('login')
+
+        # Send customer verification email
+        token = default_token_generator.make_token(user)
+        user.email_verification_token = token
+        user.save(update_fields=['email_verification_token'])
+        
+        verification_link = self.request.build_absolute_uri(
+            reverse('verify_email', kwargs={
+                'uidb64': urlsafe_base64_encode(force_bytes(user.pk)),
+                'token': token
+            })
+        )
+        
+        subject = 'Verify Your Email - TipsyDipsy'
+        message = f"""Hello {user.first_name},
+
+Welcome to TipsyDipsy! Your customer account has been successfully created.
+
+To complete your registration and start shopping, please verify your email by clicking the link below:
+
+{verification_link}
+
+This link will expire in 24 hours.
+
+If you did not create this account, please ignore this email.
+
+Best regards,
+TipsyDipsy Team"""
+        send_mail(
+            subject,
+            message,
+            settings.EMAIL_HOST_USER,
+            [user.email],
+            fail_silently=True,
+        )
+        messages.info(
+            self.request,
+            'Account created! Please check your email to verify your account before logging in.'
+        )
+        return redirect('login')
 
 class UserLoginView(LoginView):
     form_class = LoginForm
     template_name = 'login.html'
 
+    def form_valid(self, form):
+        user = form.get_user()
+
+        if user.is_vendor() and user.vendor_status != 'APPROVED':
+            if user.vendor_status == 'PENDING':
+                message = 'Your vendor account is pending admin approval.'
+            else:
+                message = 'Your vendor account was rejected. Please contact the admin.'
+
+            form.add_error(None, message)
+            messages.error(self.request, message)
+            return self.form_invalid(form)
+        
+        if user.is_customer() and not user.email_verified:
+            message = 'Please verify your email before logging in. Check your inbox for the verification link.'
+            form.add_error(None, message)
+            messages.error(self.request, message)
+            return self.form_invalid(form)
+
+        return super().form_valid(form)
+
     def get_success_url(self):
         user = self.request.user
+        if user.is_admin():
+            return reverse_lazy('admin_dashboard')
         if user.is_vendor():
             return reverse_lazy('vendor_dashboard')
         else:
@@ -40,6 +134,24 @@ class UserLoginView(LoginView):
 class UserLogoutView(LogoutView):
     next_page = reverse_lazy('home')
 
+
+class EmailVerificationView(View):
+    def get(self, request, uidb64, token, *args, **kwargs):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            user.email_verified = True
+            user.email_verification_token = ''
+            user.save(update_fields=['email_verified', 'email_verification_token'])
+            messages.success(request, 'Email verified successfully! You can now log in.')
+            return redirect('login')
+        else:
+            messages.error(request, 'Email verification link is invalid or expired.')
+            return redirect('signup')
 
 
 class HomeView(ListView):
@@ -54,7 +166,7 @@ class HomeView(ListView):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
         context['total_products'] = Product.objects.count()
-        context['total_vendors'] = CustomUser.objects.filter(role='VENDOR').count()
+        context['total_vendors'] = CustomUser.objects.filter(role='VENDOR', vendor_status='APPROVED').count()
         context['total_categories'] = Category.objects.count()
         return context
 
@@ -65,6 +177,140 @@ class ProductDetailView(DetailView):
 
     def get_object(self, queryset=None):
         return get_object_or_404(Product, id=self.kwargs.get('id'))
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminDashboardView(LoginRequiredMixin, View):
+    template_name = 'Admin/AdminDashboard.html'
+
+    def get(self, request, *args, **kwargs):
+        context = {
+            'total_users': CustomUser.objects.count(),
+            'total_customers': CustomUser.objects.filter(role='CUSTOMER').count(),
+            'total_vendors': CustomUser.objects.filter(role='VENDOR').count(),
+            'pending_vendors': CustomUser.objects.filter(role='VENDOR', vendor_status='PENDING').count(),
+            'approved_vendors': CustomUser.objects.filter(role='VENDOR', vendor_status='APPROVED').count(),
+            'rejected_vendors': CustomUser.objects.filter(role='VENDOR', vendor_status='REJECTED').count(),
+            'total_products': Product.objects.count(),
+            'total_orders': Order.objects.count(),
+            'total_categories': Category.objects.count(),
+            'recent_orders': Order.objects.select_related('user').order_by('-created_at')[:8],
+            'recent_signups': CustomUser.objects.order_by('-date_joined')[:8],
+        }
+        return render(request, self.template_name, context)
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminVendorsView(LoginRequiredMixin, View):
+    template_name = 'Admin/AdminVendors.html'
+
+    def get(self, request, *args, **kwargs):
+        context = {
+            'pending_vendors': CustomUser.objects.filter(role='VENDOR', vendor_status='PENDING').order_by('-date_joined'),
+            'approved_vendors': CustomUser.objects.filter(role='VENDOR', vendor_status='APPROVED').order_by('-date_joined'),
+            'rejected_vendors': CustomUser.objects.filter(role='VENDOR', vendor_status='REJECTED').order_by('-date_joined'),
+        }
+        return render(request, self.template_name, context)
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminApproveVendorView(LoginRequiredMixin, View):
+    def post(self, request, user_id, *args, **kwargs):
+        vendor = get_object_or_404(CustomUser, id=user_id, role='VENDOR')
+        vendor.vendor_status = 'APPROVED'
+        vendor.save(update_fields=['vendor_status'])
+        
+        # Send vendor approval email
+        subject = 'Your TipsyDipsy Vendor Account Has Been Approved!'
+        message = f"""Hello {vendor.first_name},
+
+Great news! Your vendor account on TipsyDipsy has been approved by our admin team.
+
+You can now log in with your credentials and start adding your products to our platform.
+
+Login Details:
+- Username: {vendor.username}
+- Email: {vendor.email}
+
+Visit https://tipsydipsy.com to log in and get started.
+
+We're excited to have you on board!
+
+Best regards,
+TipsyDipsy Team"""
+        send_mail(
+            subject,
+            message,
+            settings.EMAIL_HOST_USER,
+            [vendor.email],
+            fail_silently=True,
+        )
+        messages.success(request, f"Vendor {vendor.username} approved and notified via email.")
+        return redirect('admin_vendors')
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminRejectVendorView(LoginRequiredMixin, View):
+    def post(self, request, user_id, *args, **kwargs):
+        vendor = get_object_or_404(CustomUser, id=user_id, role='VENDOR')
+        vendor.vendor_status = 'REJECTED'
+        vendor.save(update_fields=['vendor_status'])
+        
+        # Send vendor rejection email
+        subject = 'TipsyDipsy Vendor Account Application - Status Update'
+        message = f"""Hello {vendor.first_name},
+
+Thank you for your interest in becoming a vendor on TipsyDipsy.
+
+Unfortunately, after reviewing your application, our admin team has decided not to approve your vendor account at this time.
+
+This decision may be based on various factors including compliance requirements or platform standards.
+
+If you have any questions or would like more information about why your application was not approved, please contact our support team at support@tipsydipsy.com
+
+We encourage you to try again in the future!
+
+Best regards,
+TipsyDipsy Team"""
+        send_mail(
+            subject,
+            message,
+            settings.EMAIL_HOST_USER,
+            [vendor.email],
+            fail_silently=True,
+        )
+        messages.success(request, f"Vendor {vendor.username} rejected and notified via email.")
+        return redirect('admin_vendors')
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminProductsView(LoginRequiredMixin, ListView):
+    model = Product
+    template_name = 'Admin/AdminProducts.html'
+    context_object_name = 'products'
+
+    def get_queryset(self):
+        return Product.objects.select_related('vendor', 'category').order_by('-created_at')
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminOrdersView(LoginRequiredMixin, ListView):
+    model = Order
+    template_name = 'Admin/AdminOrders.html'
+    context_object_name = 'orders'
+
+    def get_queryset(self):
+        return Order.objects.select_related('user').order_by('-created_at')
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminCustomersView(LoginRequiredMixin, ListView):
+    model = CustomUser
+    template_name = 'Admin/AdminCustomers.html'
+    context_object_name = 'customers'
+
+    def get_queryset(self):
+        return CustomUser.objects.filter(role='CUSTOMER').order_by('-date_joined')
 
 
 
