@@ -1,134 +1,156 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="py-2">
-    <h2 class="td-section-title">Customer Orders</h2>
-
-    {% if vendor_orders %}
-    {% for entry in vendor_orders %}
-    <div class="td-order-card">
-        <div class="td-order-header">
-            <div>
-                <span class="td-order-id">Order #{{ entry.order.id }}</span>
-                <span class="td-order-date">
-                    <i class="bi bi-calendar3 me-1"></i>{{ entry.order.created_at|date:"M d, Y · h:i A" }}
-                </span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                {% if entry.order.status == 'Pending' %}
-                <span class="td-badge td-badge-pending">{{ entry.order.status }}</span>
-                {% elif entry.order.status == 'Confirmed' %}
-                <span class="td-badge td-badge-confirmed">{{ entry.order.status }}</span>
-                {% elif entry.order.status == 'Delivered' %}
-                <span class="td-badge td-badge-delivered">{{ entry.order.status }}</span>
-                {% else %}
-                <span class="td-badge td-badge-out">{{ entry.order.status }}</span>
-                {% endif %}
-            </div>
+<div class="py-5">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="text-center mb-5">
+            <h1 class="td-section-title mb-2">
+                <i class="bi bi-receipt"></i> Order Management
+            </h1>
+            <p class="text-muted" style="font-size: 1.1rem;">Manage your orders efficiently across different statuses</p>
         </div>
 
-        <!-- Customer Info -->
-        <div class="px-4 py-3" style="background: var(--td-cream); border-bottom: 1px solid var(--td-linen);">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center">
-                        <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--td-brown), var(--td-espresso)); display: flex; align-items: center; justify-content: center; color: var(--td-gold); font-weight: 700; font-size: 0.85rem; margin-right: 0.75rem;">
-                            {{ entry.customer.first_name|first }}{{ entry.customer.last_name|first }}
-                        </div>
-                        <div>
-                            <div style="font-weight: 600; font-size: 0.92rem; color: var(--td-brown);">
-                                {{ entry.customer.first_name }} {{ entry.customer.last_name }}
+        <!-- Order Status Cards -->
+        <div class="row g-4 mb-5">
+            <!-- New Orders Card -->
+            <div class="col-md-4">
+                <div class="card h-100" style="border: none; background: linear-gradient(135deg, var(--td-cream), #FFF5E6); box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 15px; overflow: hidden; transition: all 0.3s ease; cursor: pointer;">
+                    <a href="{% url 'vendor_new_orders' %}" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                        <div class="card-body p-4 d-flex flex-column align-items-center text-center">
+                            <div style="font-size: 3rem; color: var(--td-gold); margin-bottom: 1rem;">
+                                <i class="bi bi-clock-history"></i>
                             </div>
-                            <div style="font-size: 0.78rem; color: var(--td-text-muted);">
-                                {{ entry.customer.email }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                    {% if entry.customer.phone_number %}
-                    <span style="font-size: 0.82rem; color: var(--td-text-muted);">
-                        <i class="bi bi-telephone me-1"></i>{{ entry.customer.phone_number }}
-                    </span>
-                    {% endif %}
-                    {% if entry.customer.address %}
-                    <span style="font-size: 0.82rem; color: var(--td-text-muted); margin-left: 1rem;">
-                        <i class="bi bi-geo-alt me-1"></i>{{ entry.customer.address }}
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Order Items (only this vendor's products) -->
-        <div class="card-body p-0">
-            <table class="table td-table mb-0">
-                <thead>
-                    <tr>
-                        <th class="ps-4">Product</th>
-                        <th class="text-center">Price</th>
-                        <th class="text-center">Qty</th>
-                        <th class="text-center">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in entry.items %}
-                    <tr>
-                        <td class="ps-4">
-                            <div class="d-flex align-items-center">
-                                {% if item.product.image %}
-                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="td-cart-thumb me-3" style="width: 42px; height: 42px;">
-                                {% else %}
-                                <div class="td-cart-thumb-placeholder me-3" style="width: 42px; height: 42px;">
-                                    <i class="bi bi-image"></i>
+                            <h4 style="color: var(--td-brown); font-weight: 700; margin: 0.5rem 0;">New Orders</h4>
+                            <p class="text-muted mb-3">Awaiting your confirmation</p>
+                            <div style="margin-top: auto; width: 100%;">
+                                <div class="alert" style="background: white; color: var(--td-espresso); margin: 0; padding: 0.75rem; border-radius: 10px; font-weight: 600; font-size: 1.5rem;">
+                                    {{ pending_orders|length }}
                                 </div>
-                                {% endif %}
-                                <span style="font-weight: 500;">{{ item.product.name }}</span>
                             </div>
-                        </td>
-                        <td class="text-center align-middle">${{ item.price }}</td>
-                        <td class="text-center align-middle">{{ item.quantity }}</td>
-                        <td class="text-center align-middle" style="font-weight: 600; color: var(--td-espresso);">${{ item.subtotal }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Orders to Deliver Card -->
+            <div class="col-md-4">
+                <div class="card h-100" style="border: none; background: linear-gradient(135deg, #E8DCC8, #F5E6D3); box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 15px; overflow: hidden; transition: all 0.3s ease; cursor: pointer;">
+                    <a href="{% url 'vendor_orders_to_deliver' %}" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                        <div class="card-body p-4 d-flex flex-column align-items-center text-center">
+                            <div style="font-size: 3rem; color: #DAA520; margin-bottom: 1rem;">
+                                <i class="bi bi-box-seam"></i>
+                            </div>
+                            <h4 style="color: var(--td-brown); font-weight: 700; margin: 0.5rem 0;">To be Delivered</h4>
+                            <p class="text-muted mb-3">Ready for shipping</p>
+                            <div style="margin-top: auto; width: 100%;">
+                                <div class="alert" style="background: white; color: var(--td-brown); margin: 0; padding: 0.75rem; border-radius: 10px; font-weight: 600; font-size: 1.5rem;">
+                                    {{ confirmed_orders|length }}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Delivered Orders Card -->
+            <div class="col-md-4">
+                <div class="card h-100" style="border: none; background: linear-gradient(135deg, #D4EDDA, #E8F5E9); box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 15px; overflow: hidden; transition: all 0.3s ease; cursor: pointer;">
+                    <a href="{% url 'vendor_delivered_orders' %}" style="text-decoration: none; color: inherit; display: block; height: 100%;">
+                        <div class="card-body p-4 d-flex flex-column align-items-center text-center">
+                            <div style="font-size: 3rem; color: #27AE60; margin-bottom: 1rem;">
+                                <i class="bi bi-check-circle"></i>
+                            </div>
+                            <h4 style="color: #27AE60; font-weight: 700; margin: 0.5rem 0;">Delivered</h4>
+                            <p class="text-muted mb-3">Completed successfully</p>
+                            <div style="margin-top: auto; width: 100%;">
+                                <div class="alert" style="background: white; color: #27AE60; margin: 0; padding: 0.75rem; border-radius: 10px; font-weight: 600; font-size: 1.5rem;">
+                                    {{ delivered_orders|length }}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
 
-        <!-- Footer: total + status update -->
-        <div class="td-order-footer flex-wrap gap-2">
-            <div>
-                <span style="color: var(--td-text-muted); font-size: 0.85rem;">
-                    {{ entry.items|length }} item{{ entry.items|length|pluralize }} from your store
-                </span>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">
-                    ${{ entry.vendor_total }}
-                </span>
+        <!-- Summary Section -->
+<div class="card summary-card">
+    <div class="row text-center">
+        <div class="col-md-4 mb-3 mb-md-0">
+            <h5 class="mb-2 opacity-75" style="color: #ffffff;">Total New Orders</h5>
+            <h2 class="summary-number">{{ pending_orders|length }}</h2>
+        </div>
 
-                <!-- Status Update Form -->
-                <form method="POST" action="{% url 'vendor_update_order_status' entry.order.id %}" class="d-flex align-items-center gap-2 mb-0">
-                    {% csrf_token %}
-                    <select name="status" class="form-select form-select-sm" style="width: auto; border-color: var(--td-beige); font-size: 0.82rem; border-radius: 6px;">
-                        <option value="Pending" {% if entry.order.status == 'Pending' %}selected{% endif %}>Pending</option>
-                        <option value="Confirmed" {% if entry.order.status == 'Confirmed' %}selected{% endif %}>Confirmed</option>
-                        <option value="Delivered" {% if entry.order.status == 'Delivered' %}selected{% endif %}>Delivered</option>
-                    </select>
-                    <button type="submit" class="btn btn-td-primary btn-sm" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
-                        Update
-                    </button>
-                </form>
-            </div>
+        <div class="col-md-4 mb-3 mb-md-0 summary-divider">
+            <h5 class="mb-2 opacity-75" style="color: #ffffff;">Waiting to Ship</h5>
+            <h2 class="summary-number">{{ confirmed_orders|length }}</h2>
+        </div>
+
+        <div class="col-md-4">
+            <h5 class="mb-2 opacity-75" style="color: #ffffff;">Successfully Delivered</h5>
+            <h2 class="summary-number">{{ delivered_orders|length }}</h2>
         </div>
     </div>
-    {% endfor %}
-    {% else %}
-    <div class="td-empty">
-        <i class="bi bi-inbox"></i>
-        <h4>No orders yet</h4>
-        <p>When customers order your products, they'll appear here.</p>
-    </div>
-    {% endif %}
 </div>
+    </div>
+</div>
+
+<style>
+    :root {
+    --td-brown: #4A2C24;
+    --td-espresso: #2E1B16;
+    --td-beige: #E8D7C8;
+    --td-cream: #FBF7F2;
+    --td-gold: #C9A356;
+    --td-linen: #F0E8E0;
+    --td-text-muted: #E0D6CF;
+}
+
+.summary-card {
+    border: none;
+    background: linear-gradient(
+        135deg,
+        var(--td-brown) 0%,
+        var(--td-espresso) 100%
+    );
+    color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    padding: 3rem;
+}
+
+.summary-number {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 2.8rem;
+    color: var(--td-gold);
+}
+
+.summary-divider {
+    border-left: 1px solid rgba(255,255,255,0.25);
+    border-right: 1px solid rgba(255,255,255,0.25);
+}
+    
+    .td-section-title {
+        color: var(--td-espresso);
+        font-family: 'Playfair Display', serif;
+        font-weight: 700;
+        font-size: 2.5rem;
+    }
+    
+    .card {
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+    }
+    
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+</style>
 {% endblock %}

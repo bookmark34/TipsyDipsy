@@ -5,6 +5,7 @@ from .views import (
     AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView,
     AdminProductsView, AdminOrdersView, AdminCustomersView,
     VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
+    VendorNewOrdersView, VendorOrdersToDeliverView, VendorDeliveredOrdersView,
     ProductCreateView, ProductUpdateView, ProductDeleteView,
     CustomerDashboardView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
@@ -33,6 +34,9 @@ urlpatterns = [
     path("vendor/product/<int:pk>/edit/", ProductUpdateView.as_view(), name="edit_product"),
     path("vendor/product/<int:pk>/delete/", ProductDeleteView.as_view(), name="delete_product"),
     path("vendor/orders/", VendorOrdersView.as_view(), name="vendor_orders"),
+    path("vendor/orders/new/", VendorNewOrdersView.as_view(), name="vendor_new_orders"),
+    path("vendor/orders/to-deliver/", VendorOrdersToDeliverView.as_view(), name="vendor_orders_to_deliver"),
+    path("vendor/orders/delivered/", VendorDeliveredOrdersView.as_view(), name="vendor_delivered_orders"),
     path("vendor/orders/<int:order_id>/status/", VendorUpdateOrderStatusView.as_view(), name="vendor_update_order_status"),
     
     # Customer URLs

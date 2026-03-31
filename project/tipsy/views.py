@@ -353,8 +353,15 @@ class VendorOrdersView(LoginRequiredMixin, View):
 
         vendor_orders = list(orders_dict.values())
 
+        # Categorize orders by status
+        pending_orders = [o for o in vendor_orders if o['order'].status == 'Pending']
+        confirmed_orders = [o for o in vendor_orders if o['order'].status == 'Confirmed']
+        delivered_orders = [o for o in vendor_orders if o['order'].status == 'Delivered']
+
         return render(request, 'vendor_orders.html', {
-            'vendor_orders': vendor_orders,
+            'pending_orders': pending_orders,
+            'confirmed_orders': confirmed_orders,
+            'delivered_orders': delivered_orders,
         })
 
 
@@ -383,6 +390,118 @@ class VendorUpdateOrderStatusView(LoginRequiredMixin, View):
             messages.error(request, "Invalid status.")
 
         return redirect('vendor_orders')
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorNewOrdersView(LoginRequiredMixin, View):
+    """Show new orders (Pending status) for this vendor."""
+
+    def get(self, request, *args, **kwargs):
+        # Get all pending order items for this vendor's products
+        vendor_order_items = (
+            OrderItem.objects
+            .filter(product__vendor=request.user, order__status='Pending')
+            .select_related('order', 'order__user', 'product')
+            .order_by('-order__created_at')
+        )
+
+        # Group by order
+        orders_dict = {}
+        for item in vendor_order_items:
+            order = item.order
+            if order.id not in orders_dict:
+                orders_dict[order.id] = {
+                    'order': order,
+                    'customer': order.user,
+                    'items': [],
+                    'vendor_total': 0,
+                }
+            orders_dict[order.id]['items'].append(item)
+            orders_dict[order.id]['vendor_total'] += item.subtotal
+
+        pending_orders = list(orders_dict.values())
+
+        context = {
+            'orders': pending_orders,
+            'status': 'Pending',
+            'count': len(pending_orders),
+        }
+        return render(request, 'vendor_new_orders.html', context)
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorOrdersToDeliverView(LoginRequiredMixin, View):
+    """Show orders to be delivered (Confirmed status) for this vendor."""
+
+    def get(self, request, *args, **kwargs):
+        # Get all confirmed order items for this vendor's products
+        vendor_order_items = (
+            OrderItem.objects
+            .filter(product__vendor=request.user, order__status='Confirmed')
+            .select_related('order', 'order__user', 'product')
+            .order_by('-order__created_at')
+        )
+
+        # Group by order
+        orders_dict = {}
+        for item in vendor_order_items:
+            order = item.order
+            if order.id not in orders_dict:
+                orders_dict[order.id] = {
+                    'order': order,
+                    'customer': order.user,
+                    'items': [],
+                    'vendor_total': 0,
+                }
+            orders_dict[order.id]['items'].append(item)
+            orders_dict[order.id]['vendor_total'] += item.subtotal
+
+        confirmed_orders = list(orders_dict.values())
+
+        context = {
+            'orders': confirmed_orders,
+            'status': 'Confirmed',
+            'count': len(confirmed_orders),
+        }
+        return render(request, 'vendor_orders_to_deliver.html', context)
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorDeliveredOrdersView(LoginRequiredMixin, View):
+    """Show delivered orders for this vendor."""
+
+    def get(self, request, *args, **kwargs):
+        # Get all delivered order items for this vendor's products
+        vendor_order_items = (
+            OrderItem.objects
+            .filter(product__vendor=request.user, order__status='Delivered')
+            .select_related('order', 'order__user', 'product')
+            .order_by('-order__created_at')
+        )
+
+        # Group by order
+        orders_dict = {}
+        for item in vendor_order_items:
+            order = item.order
+            if order.id not in orders_dict:
+                orders_dict[order.id] = {
+                    'order': order,
+                    'customer': order.user,
+                    'items': [],
+                    'vendor_total': 0,
+                }
+            orders_dict[order.id]['items'].append(item)
+            orders_dict[order.id]['vendor_total'] += item.subtotal
+
+        delivered_orders = list(orders_dict.values())
+
+        context = {
+            'orders': delivered_orders,
+            'status': 'Delivered',
+            'count': len(delivered_orders),
+        }
+        return render(request, 'vendor_delivered_orders.html', context)
+
 
 @method_decorator(vendor_required, name='dispatch')
 class ProductCreateView(LoginRequiredMixin, CreateView):
