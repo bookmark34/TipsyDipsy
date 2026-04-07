@@ -3,7 +3,11 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h2 class="mb-1">Admin Dashboard</h2>
-    <p class="text-muted mb-0">Platform overview and quick access to management pages.</p>
+    <p class="text-muted mb-0">Platform overview and monthly reports.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'admin_vendors' %}" class="btn btn-outline-secondary">Manage Vendors</a>
+    <a href="{% url 'admin_export_report_pdf' %}" class="btn btn-outline-secondary">Export PDF Report</a>
   </div>
 </div>
 
@@ -13,6 +17,7 @@
       <div class="card-body">
         <h6 class="text-muted">Total Users</h6>
         <h3 class="mb-0">{{ total_users }}</h3>
+        <small class="text-success">+{{ new_users_last_30_days }} in last 30 days</small>
       </div>
     </div>
   </div>
@@ -21,7 +26,7 @@
       <div class="card-body">
         <h6 class="text-muted">Total Vendors</h6>
         <h3 class="mb-0">{{ total_vendors }}</h3>
-        <small class="text-warning">Pending: {{ pending_vendors }}</small>
+        <small class="text-warning">Pending approvals: {{ pending_vendors }}</small>
       </div>
     </div>
   </div>
@@ -30,6 +35,7 @@
       <div class="card-body">
         <h6 class="text-muted">Total Products</h6>
         <h3 class="mb-0">{{ total_products }}</h3>
+        <small class="text-muted">Categories: {{ total_categories }}</small>
       </div>
     </div>
   </div>
@@ -38,30 +44,86 @@
       <div class="card-body">
         <h6 class="text-muted">Total Orders</h6>
         <h3 class="mb-0">{{ total_orders }}</h3>
+        <small class="text-muted">Customers: {{ total_customers }}</small>
       </div>
     </div>
   </div>
 </div>
 
-
-  <div class="col-lg-5">
-    <div class="card shadow-sm border-0 mb-4">
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="card shadow-sm border-0 h-100">
       <div class="card-body">
-        <h5 class="mb-3">Vendor Approval Snapshot</h5>
-        <div class="d-flex justify-content-between mb-2">
-          <span>Pending</span><strong>{{ pending_vendors }}</strong>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span>Approved</span><strong>{{ approved_vendors }}</strong>
-        </div>
-        <div class="d-flex justify-content-between">
-          <span>Rejected</span><strong>{{ rejected_vendors }}</strong>
-        </div>
-        <a href="{% url 'admin_vendors' %}" class="btn btn-primary w-100 mt-3">Manage Vendors</a>
+        <h5 class="mb-3">Monthly Orders and Signups</h5>
+        <canvas id="ordersSignupsChart" height="120"></canvas>
       </div>
     </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h5 class="mb-3">Order Status Mix</h5>
+        <canvas id="orderStatusChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
-    <div class="card shadow-sm border-0 mb-4">
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h5 class="mb-3">Monthly Revenue (NPR)</h5>
+        <canvas id="revenueChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h5 class="mb-3">Top Vendors by Delivered Sales</h5>
+        {% if top_vendors %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th class="text-end">Orders</th>
+                <th class="text-end">Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for vendor in top_vendors %}
+              <tr>
+                <td>{{ vendor.product__vendor__username }}</td>
+                <td class="text-end">{{ vendor.orders_count }}</td>
+                <td class="text-end">NPR {{ vendor.total_sales|floatformat:2 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No delivered sales data available yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <h5 class="mb-3">Vendor Approval Snapshot</h5>
+        <div class="d-flex justify-content-between mb-2"><span>Pending</span><strong>{{ pending_vendors }}</strong></div>
+        <div class="d-flex justify-content-between mb-2"><span>Approved</span><strong>{{ approved_vendors }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Rejected</span><strong>{{ rejected_vendors }}</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
       <div class="card-body">
         <h5 class="mb-3">Recent Signups</h5>
         {% if recent_signups %}
@@ -83,4 +145,90 @@
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labels = {{ monthly_labels_json|safe }};
+  const monthlyOrders = {{ monthly_orders_json|safe }};
+  const monthlyRevenue = {{ monthly_revenue_json|safe }};
+  const monthlySignups = {{ monthly_signups_json|safe }};
+  const statusLabels = {{ order_status_labels_json|safe }};
+  const statusData = {{ order_status_data_json|safe }};
+
+  const commonGrid = {
+    color: 'rgba(0, 0, 0, 0.06)',
+  };
+
+  new Chart(document.getElementById('ordersSignupsChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Orders',
+          data: monthlyOrders,
+          borderColor: '#5D3931',
+          backgroundColor: 'rgba(93, 57, 49, 0.12)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 3
+        },
+        {
+          label: 'Signups',
+          data: monthlySignups,
+          borderColor: '#C9A356',
+          backgroundColor: 'rgba(201, 163, 86, 0.14)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: { grid: commonGrid },
+        y: { beginAtZero: true, grid: commonGrid }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Revenue (NPR)',
+        data: monthlyRevenue,
+        borderRadius: 8,
+        backgroundColor: 'rgba(201, 163, 86, 0.78)',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: commonGrid }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('orderStatusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: statusLabels,
+      datasets: [{
+        data: statusData,
+        backgroundColor: ['#D4A017', '#8B7B73', '#27AE60'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+</script>
 {% endblock %}

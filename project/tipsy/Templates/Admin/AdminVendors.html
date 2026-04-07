@@ -17,8 +17,13 @@
         <thead>
           <tr>
             <th>Username</th>
+            <th>Business</th>
             <th>Email</th>
             <th>Phone</th>
+            <th>PAN Number</th>
+            <th>PAN Document</th>
+            <th>Tax Document</th>
+            <th>Address</th>
             <th>Joined</th>
             <th class="text-end">Action</th>
           </tr>
@@ -27,8 +32,25 @@
           {% for vendor in pending_vendors %}
           <tr>
             <td>{{ vendor.username }}</td>
+            <td>{{ vendor.business_name|default:'-' }}</td>
             <td>{{ vendor.email }}</td>
             <td>{{ vendor.phone_number|default:'-' }}</td>
+            <td>{{ vendor.pan_number|default:'-' }}</td>
+            <td>
+              {% if vendor.pan_document %}
+              <a href="{{ vendor.pan_document.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">View Document</a>
+              {% else %}
+              <span class="text-muted">Not uploaded</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if vendor.tax_document %}
+              <a href="{{ vendor.tax_document.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">View Document</a>
+              {% else %}
+              <span class="text-muted">Not uploaded</span>
+              {% endif %}
+            </td>
+            <td>{{ vendor.address|default:'-' }}</td>
             <td>{{ vendor.date_joined|date:"M d, Y" }}</td>
             <td class="text-end">
               <form method="post" action="{% url 'admin_approve_vendor' vendor.id %}" class="d-inline">
@@ -63,8 +85,32 @@
             <div>
               <strong>{{ vendor.username }}</strong>
               <div class="small text-muted">{{ vendor.email }}</div>
+              <div class="small text-muted">Business: {{ vendor.business_name|default:'-' }}</div>
+              <div class="small text-muted">PAN: {{ vendor.pan_number|default:'-' }}</div>
+              <div class="small text-muted">
+                PAN Document:
+                {% if vendor.pan_document %}
+                <a href="{{ vendor.pan_document.url }}" target="_blank" rel="noopener">View</a>
+                {% else %}
+                Not uploaded
+                {% endif %}
+              </div>
+              <div class="small text-muted">
+                Tax Document:
+                {% if vendor.tax_document %}
+                <a href="{{ vendor.tax_document.url }}" target="_blank" rel="noopener">View</a>
+                {% else %}
+                Not uploaded
+                {% endif %}
+              </div>
             </div>
-            <small class="badge text-bg-success">Approved</small>
+            <div class="d-flex align-items-center gap-2">
+              <small class="badge text-bg-success">Approved</small>
+              <form method="post" action="{% url 'admin_remove_vendor' vendor.id %}" onsubmit="return confirm('Remove this approved vendor? This action cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">Remove Vendor</button>
+              </form>
+            </div>
           </li>
           {% endfor %}
         </ul>
@@ -85,6 +131,24 @@
             <div>
               <strong>{{ vendor.username }}</strong>
               <div class="small text-muted">{{ vendor.email }}</div>
+              <div class="small text-muted">Business: {{ vendor.business_name|default:'-' }}</div>
+              <div class="small text-muted">PAN: {{ vendor.pan_number|default:'-' }}</div>
+              <div class="small text-muted">
+                PAN Document:
+                {% if vendor.pan_document %}
+                <a href="{{ vendor.pan_document.url }}" target="_blank" rel="noopener">View</a>
+                {% else %}
+                Not uploaded
+                {% endif %}
+              </div>
+              <div class="small text-muted">
+                Tax Document:
+                {% if vendor.tax_document %}
+                <a href="{{ vendor.tax_document.url }}" target="_blank" rel="noopener">View</a>
+                {% else %}
+                Not uploaded
+                {% endif %}
+              </div>
             </div>
             <form method="post" action="{% url 'admin_approve_vendor' vendor.id %}">
               {% csrf_token %}

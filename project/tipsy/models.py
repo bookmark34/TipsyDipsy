@@ -30,7 +30,9 @@ class CustomUser(AbstractUser):
     email_verification_token = models.CharField(max_length=255, blank=True, null=True)
     latitude = models.FloatField(null=True, blank=True, help_text="Latitude for location-based delivery")
     longitude = models.FloatField(null=True, blank=True, help_text="Longitude for location-based delivery")
+    business_name = models.CharField(max_length=255, blank=True, null=True, help_text="Business Name for Vendors")
     pan_number = models.CharField(max_length=20, blank=True, null=True, help_text="PAN Number for Vendors")
+    tax_document = models.FileField(upload_to='vendor_documents/', blank=True, null=True, help_text="Tax Clearance Certificate Upload")
     pan_document = models.FileField(upload_to='vendor_documents/', blank=True, null=True, help_text="PAN Document Upload")
     objects = CustomUserManager()
     

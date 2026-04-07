@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     HomeView, ProductListView, ProductDetailView,
     SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
-    AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView,
+    AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView, AdminRemoveVendorView,
+    admin_export_report_pdf,
     AdminProductsView, AdminOrdersView, AdminCustomersView,
     VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
     VendorNewOrdersView, VendorOrdersToDeliverView, VendorDeliveredOrdersView,
@@ -21,9 +22,11 @@ urlpatterns = [
 
     # Custom Admin URLs
     path("control/dashboard/", AdminDashboardView.as_view(), name="admin_dashboard"),
+    path("control/dashboard/export-pdf/", admin_export_report_pdf, name="admin_export_report_pdf"),
     path("control/vendors/", AdminVendorsView.as_view(), name="admin_vendors"),
     path("control/vendors/<int:user_id>/approve/", AdminApproveVendorView.as_view(), name="admin_approve_vendor"),
     path("control/vendors/<int:user_id>/reject/", AdminRejectVendorView.as_view(), name="admin_reject_vendor"),
+    path("control/vendors/<int:user_id>/remove/", AdminRemoveVendorView.as_view(), name="admin_remove_vendor"),
     path("control/products/", AdminProductsView.as_view(), name="admin_products"),
     path("control/orders/", AdminOrdersView.as_view(), name="admin_orders"),
     path("control/customers/", AdminCustomersView.as_view(), name="admin_customers"),

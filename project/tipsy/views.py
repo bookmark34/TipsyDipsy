@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
+from django.http import HttpResponse
 from .forms import SignUpForm, LoginForm, ProductForm
 from .models import CustomUser, Product, Category, Cart, CartItem, Order, OrderItem
 from django.views import View
@@ -19,8 +20,9 @@ from django.db.models import Count, F, Sum, DecimalField, ExpressionWrapper, Val
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
 from .decorators import vendor_required, customer_required, admin_required
+import json
 import math
-from datetime import timedelta
+from datetime import timedelta, datetime, date
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     if not all([lat1, lon1, lat2, lon2]):
@@ -207,6 +209,82 @@ class AdminDashboardView(LoginRequiredMixin, View):
     template_name = 'Admin/AdminDashboard.html'
 
     def get(self, request, *args, **kwargs):
+        now = timezone.now()
+
+        # Build a 6-month sequence (oldest to latest) for chart axes.
+        months = []
+        year = now.year
+        month = now.month
+        for _ in range(6):
+            months.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        months.reverse()
+
+        month_labels = [datetime(y, m, 1).strftime('%b %Y') for y, m in months]
+        month_keys = [f'{y:04d}-{m:02d}' for y, m in months]
+        oldest_start = date(months[0][0], months[0][1], 1)
+
+        monthly_orders_qs = (
+            Order.objects.filter(created_at__date__gte=oldest_start)
+            .annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(
+                total_orders=Count('id'),
+                total_revenue=Coalesce(
+                    Sum('total_price'),
+                    Value(0),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                ),
+            )
+            .order_by('month')
+        )
+
+        monthly_signups_qs = (
+            CustomUser.objects.filter(date_joined__date__gte=oldest_start)
+            .annotate(month=TruncMonth('date_joined'))
+            .values('month')
+            .annotate(total_signups=Count('id'))
+            .order_by('month')
+        )
+
+        orders_map = {row['month'].strftime('%Y-%m'): row['total_orders'] for row in monthly_orders_qs}
+        revenue_map = {row['month'].strftime('%Y-%m'): float(row['total_revenue']) for row in monthly_orders_qs}
+        signups_map = {row['month'].strftime('%Y-%m'): row['total_signups'] for row in monthly_signups_qs}
+
+        monthly_orders = [orders_map.get(key, 0) for key in month_keys]
+        monthly_revenue = [revenue_map.get(key, 0) for key in month_keys]
+        monthly_signups = [signups_map.get(key, 0) for key in month_keys]
+
+        order_status_qs = Order.objects.values('status').annotate(total=Count('id'))
+        order_status_map = {row['status']: row['total'] for row in order_status_qs}
+        order_status_labels = ['Pending', 'Confirmed', 'Delivered']
+        order_status_data = [order_status_map.get(label, 0) for label in order_status_labels]
+
+        line_total_expr = ExpressionWrapper(
+            F('price') * F('quantity'),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+        top_vendors = (
+            OrderItem.objects.filter(order__status='Delivered')
+            .values('product__vendor__username')
+            .annotate(
+                total_sales=Coalesce(
+                    Sum(line_total_expr),
+                    Value(0),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                ),
+                orders_count=Count('order', distinct=True),
+            )
+            .order_by('-total_sales')[:5]
+        )
+
+        new_users_last_30_days = CustomUser.objects.filter(
+            date_joined__gte=now - timedelta(days=30)
+        ).count()
+
         context = {
             'total_users': CustomUser.objects.count(),
             'total_customers': CustomUser.objects.filter(role='CUSTOMER').count(),
@@ -219,8 +297,124 @@ class AdminDashboardView(LoginRequiredMixin, View):
             'total_categories': Category.objects.count(),
             'recent_orders': Order.objects.select_related('user').order_by('-created_at')[:8],
             'recent_signups': CustomUser.objects.order_by('-date_joined')[:8],
+            'new_users_last_30_days': new_users_last_30_days,
+            'top_vendors': top_vendors,
+            'monthly_labels_json': json.dumps(month_labels),
+            'monthly_orders_json': json.dumps(monthly_orders),
+            'monthly_revenue_json': json.dumps(monthly_revenue),
+            'monthly_signups_json': json.dumps(monthly_signups),
+            'order_status_labels_json': json.dumps(order_status_labels),
+            'order_status_data_json': json.dumps(order_status_data),
         }
         return render(request, self.template_name, context)
+
+
+@admin_required
+def admin_export_report_pdf(request):
+    """Export admin dashboard snapshot as a PDF report."""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+
+    now = timezone.now()
+    generated_at = now.strftime('%B %d, %Y at %I:%M %p')
+
+    total_users = CustomUser.objects.count()
+    total_customers = CustomUser.objects.filter(role='CUSTOMER').count()
+    pending_vendors = CustomUser.objects.filter(role='VENDOR', vendor_status='PENDING').count()
+    approved_vendors = CustomUser.objects.filter(role='VENDOR', vendor_status='APPROVED').count()
+    rejected_vendors = CustomUser.objects.filter(role='VENDOR', vendor_status='REJECTED').count()
+    total_products = Product.objects.count()
+    total_orders = Order.objects.count()
+
+    monthly_orders = (
+        Order.objects.annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(
+            count=Count('id'),
+            revenue=Coalesce(
+                Sum('total_price'),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+        .order_by('-month')[:12]
+    )
+
+    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="admin_monthly_report_{now.strftime("%Y%m%d_%H%M%S")}.pdf"'
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    elements = []
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        textColor=colors.HexColor('#153E5C'),
+        alignment=TA_CENTER,
+        spaceAfter=18,
+    )
+
+    elements.append(Paragraph('TipsyDipsy Admin Report', title_style))
+    elements.append(Paragraph(f'Generated: {generated_at}', styles['Normal']))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    summary_data = [
+        ['Metric', 'Value'],
+        ['Total Users', str(total_users)],
+        ['Total Customers', str(total_customers)],
+        ['Pending Vendors', str(pending_vendors)],
+        ['Approved Vendors', str(approved_vendors)],
+        ['Rejected Vendors', str(rejected_vendors)],
+        ['Total Products', str(total_products)],
+        ['Total Orders', str(total_orders)],
+    ]
+    summary_table = Table(summary_data, colWidths=[3.5 * inch, 3.2 * inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#153E5C')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D6DEE5')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F8FA')]),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 0.25 * inch))
+
+    monthly_data = [['Month', 'Orders', 'Revenue (NPR)']]
+    for row in monthly_orders:
+        monthly_data.append([
+            row['month'].strftime('%b %Y'),
+            str(row['count']),
+            f"{row['revenue']:,.2f}",
+        ])
+
+    monthly_table = Table(monthly_data, colWidths=[2.3 * inch, 1.8 * inch, 2.6 * inch])
+    monthly_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2D6A8A')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D6DEE5')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F8FA')]),
+        ('ALIGN', (1, 1), (2, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+    ]))
+    elements.append(Paragraph('Monthly Performance (Last 12 Months)', styles['Heading3']))
+    elements.append(monthly_table)
+
+    doc.build(elements)
+    response.write(buffer.getvalue())
+    buffer.close()
+    return response
 
 
 @method_decorator(admin_required, name='dispatch')
@@ -303,6 +497,16 @@ TipsyDipsy Team"""
             fail_silently=True,
         )
         messages.success(request, f"Vendor {vendor.username} rejected and notified via email.")
+        return redirect('admin_vendors')
+
+
+@method_decorator(admin_required, name='dispatch')
+class AdminRemoveVendorView(LoginRequiredMixin, View):
+    def post(self, request, user_id, *args, **kwargs):
+        vendor = get_object_or_404(CustomUser, id=user_id, role='VENDOR', vendor_status='APPROVED')
+        username = vendor.username
+        vendor.delete()
+        messages.success(request, f"Approved vendor {username} has been removed.")
         return redirect('admin_vendors')
 
 

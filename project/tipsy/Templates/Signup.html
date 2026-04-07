@@ -75,6 +75,11 @@
                         <!-- Vendor-specific fields (shown only when Vendor role is selected) -->
                         <div id="vendor-fields" style="display: none;">
                             <div class="mb-3">
+                                <label class="form-label">Business Name</label>
+                                {{ form.business_name }}
+                                <div class="text-danger small">{{ form.business_name.errors }}</div>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">PAN Number <span class="text-danger">*</span></label>
                                 {{ form.pan_number }}
                                 <div class="text-danger small">{{ form.pan_number.errors }}</div>
@@ -85,6 +90,12 @@
                                 {{ form.pan_document }}
                                 <div class="text-danger small">{{ form.pan_document.errors }}</div>
                                 <small class="text-muted">Upload a clear copy of your PAN card (PDF, JPG, or PNG)</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tax Clearance Certificate <span class="text-danger">*</span></label>
+                                {{ form.tax_document }}
+                                <div class="text-danger small">{{ form.tax_document.errors }}</div>
+                                <small class="text-muted">Upload a clear copy of your Tax Clearance Certificate (PDF, JPG, or PNG)</small>
                             </div>
                         </div>
 
