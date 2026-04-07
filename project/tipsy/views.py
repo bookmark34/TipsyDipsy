@@ -15,8 +15,23 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
+from django.db.models import Count, F, Sum, DecimalField, ExpressionWrapper, Value
+from django.db.models.functions import Coalesce, TruncMonth
+from django.utils import timezone
 from .decorators import vendor_required, customer_required, admin_required
+import math
+from datetime import timedelta
 
+def calculate_distance(lat1, lon1, lat2, lon2):
+    if not all([lat1, lon1, lat2, lon2]):
+        return float('inf')
+    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    r = 6371
+    return c * r
 
 class SignUpView(CreateView):
     form_class = SignUpForm
@@ -25,6 +40,8 @@ class SignUpView(CreateView):
 
     def form_valid(self, form):
         user = form.save()
+        password = self.request.POST.get('password1')
+        
         if user.is_vendor():
             user.vendor_status = 'PENDING'
             user.save(update_fields=['vendor_status'])
@@ -37,6 +54,7 @@ Thank you for signing up as a vendor on TipsyDipsy!
 Your vendor account has been created with the following details:
 - Username: {user.username}
 - Email: {user.email}
+- Password: {password}
 
 Your account is currently pending admin approval. Once approved, you will be able to log in and start adding your products.
 
@@ -73,6 +91,11 @@ TipsyDipsy Team"""
         message = f"""Hello {user.first_name},
 
 Welcome to TipsyDipsy! Your customer account has been successfully created.
+
+Your account details:
+- Username: {user.username}
+- Email: {user.email}
+- Password: {password}
 
 To complete your registration and start shopping, please verify your email by clicking the link below:
 
@@ -317,11 +340,291 @@ class AdminCustomersView(LoginRequiredMixin, ListView):
 @method_decorator(vendor_required, name='dispatch')
 class VendorDashboardView(LoginRequiredMixin, ListView):
     model = Product
-    template_name = 'vendor_dashboard.html'
+    template_name = 'Vendor/vendor_dashboard.html'
     context_object_name = 'products'
 
     def get_queryset(self):
         return Product.objects.filter(vendor=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        line_total_expr = ExpressionWrapper(
+            F('price') * F('quantity'),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+
+        delivered_items = OrderItem.objects.filter(
+            product__vendor=self.request.user,
+            order__status='Delivered',
+        )
+
+        total_sales = delivered_items.aggregate(
+            amount=Coalesce(
+                Sum(line_total_expr),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )['amount']
+
+        sales_last_30_days = delivered_items.filter(
+            order__created_at__gte=timezone.now() - timedelta(days=30)
+        ).aggregate(
+            amount=Coalesce(
+                Sum(line_total_expr),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )['amount']
+
+        units_sold = delivered_items.aggregate(
+            quantity=Coalesce(Sum('quantity'), Value(0))
+        )['quantity']
+
+        delivered_orders_count = delivered_items.values('order_id').distinct().count()
+
+        monthly_sales = delivered_items.annotate(
+            month=TruncMonth('order__created_at')
+        ).values('month').annotate(
+            total_sales=Coalesce(
+                Sum(line_total_expr),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            total_units=Coalesce(Sum('quantity'), Value(0)),
+            orders=Count('order', distinct=True),
+        ).order_by('-month')[:6]
+
+        context['sales_summary'] = {
+            'total_sales': total_sales,
+            'sales_last_30_days': sales_last_30_days,
+            'units_sold': units_sold,
+            'delivered_orders_count': delivered_orders_count,
+        }
+        context['monthly_sales'] = monthly_sales
+        return context
+
+
+@vendor_required
+def vendor_export_report(request):
+    """Export vendor sales report as PDF."""
+    from django.http import HttpResponse
+    from datetime import datetime
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from io import BytesIO
+    
+    # Create the HttpResponse object with PDF header
+    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="vendor_sales_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    # Create PDF document
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    elements = []
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=12,
+        spaceBefore=20,
+        fontName='Helvetica-Bold'
+    )
+    
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#6B6B6B')
+    )
+    
+    # Title
+    elements.append(Paragraph("VENDOR SALES REPORT", title_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Header info
+    header_data = [
+        ['Generated:', datetime.now().strftime("%B %d, %Y at %I:%M %p")],
+        ['Vendor:', f"{request.user.first_name} {request.user.last_name}"],
+        ['Email:', request.user.email]
+    ]
+    
+    header_table = Table(header_data, colWidths=[1.5*inch, 4.5*inch])
+    header_table.setStyle(TableStyle([
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#8B7B73')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#5D3931')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Calculate statistics
+    line_total_expr = ExpressionWrapper(
+        F('price') * F('quantity'),
+        output_field=DecimalField(max_digits=12, decimal_places=2),
+    )
+    
+    delivered_items = OrderItem.objects.filter(
+        product__vendor=request.user,
+        order__status='Delivered',
+    ).select_related('product', 'order', 'order__user')
+    
+    total_sales = delivered_items.aggregate(
+        amount=Coalesce(
+            Sum(line_total_expr),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )['amount']
+    
+    sales_last_30_days = delivered_items.filter(
+        order__created_at__gte=timezone.now() - timedelta(days=30)
+    ).aggregate(
+        amount=Coalesce(
+            Sum(line_total_expr),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )['amount']
+    
+    units_sold = delivered_items.aggregate(
+        quantity=Coalesce(Sum('quantity'), Value(0))
+    )['quantity']
+    
+    delivered_orders_count = delivered_items.values('order_id').distinct().count()
+    
+    # Sales Summary Section
+    elements.append(Paragraph("SALES SUMMARY", heading_style))
+    
+    summary_data = [
+        ['Total Orders Completed', str(delivered_orders_count)],
+        ['Total Sales (All Time)', f"NPR {total_sales:,.2f}"],
+        ['Sales (Last 30 Days)', f"NPR {sales_last_30_days:,.2f}"],
+        ['Total Units Sold', str(units_sold)]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#FBF7F2')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#5D3931')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#C9A356')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Monthly Sales Breakdown
+    monthly_sales = delivered_items.annotate(
+        month=TruncMonth('order__created_at')
+    ).values('month').annotate(
+        total_sales=Coalesce(
+            Sum(line_total_expr),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+        total_units=Coalesce(Sum('quantity'), Value(0)),
+        orders=Count('order', distinct=True),
+    ).order_by('-month')[:12]
+    
+    if monthly_sales:
+        elements.append(Paragraph("MONTHLY SALES BREAKDOWN (Last 12 Months)", heading_style))
+        
+        monthly_data = [['Month', 'Orders', 'Units Sold', 'Total Sales (NPR)']]
+        for month_data in monthly_sales:
+            monthly_data.append([
+                month_data['month'].strftime('%B %Y'),
+                str(month_data['orders']),
+                str(month_data['total_units']),
+                f"NPR {month_data['total_sales']:,.2f}"
+            ])
+        
+        monthly_table = Table(monthly_data, colWidths=[2*inch, 1.2*inch, 1.2*inch, 1.8*inch])
+        monthly_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5D3931')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(monthly_table)
+        elements.append(Spacer(1, 0.3*inch))
+    
+    # Product Performance
+    product_stats = delivered_items.values('product__name').annotate(
+        total_quantity=Sum('quantity'),
+        total_revenue=Sum(line_total_expr)
+    ).order_by('-total_revenue')[:20]  # Top 20 products
+    
+    if product_stats:
+        elements.append(Paragraph("TOP SELLING PRODUCTS", heading_style))
+        
+        product_data = [['Product Name', 'Units Sold', 'Total Revenue (NPR)']]
+        for product in product_stats:
+            product_data.append([
+                product['product__name'][:40],  # Truncate long names
+                str(product['total_quantity']),
+                f"NPR {product['total_revenue']:,.2f}"
+            ])
+        
+        product_table = Table(product_data, colWidths=[3*inch, 1.5*inch, 1.7*inch])
+        product_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5D3931')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(product_table)
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get the value of the BytesIO buffer and write it to the response
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response
+
 
 
 @method_decorator(vendor_required, name='dispatch')
@@ -358,7 +661,7 @@ class VendorOrdersView(LoginRequiredMixin, View):
         confirmed_orders = [o for o in vendor_orders if o['order'].status == 'Confirmed']
         delivered_orders = [o for o in vendor_orders if o['order'].status == 'Delivered']
 
-        return render(request, 'vendor_orders.html', {
+        return render(request, 'Vendor/vendor_orders.html', {
             'pending_orders': pending_orders,
             'confirmed_orders': confirmed_orders,
             'delivered_orders': delivered_orders,
@@ -426,7 +729,7 @@ class VendorNewOrdersView(LoginRequiredMixin, View):
             'status': 'Pending',
             'count': len(pending_orders),
         }
-        return render(request, 'vendor_new_orders.html', context)
+        return render(request, 'Vendor/vendor_new_orders.html', context)
 
 
 @method_decorator(vendor_required, name='dispatch')
@@ -463,7 +766,7 @@ class VendorOrdersToDeliverView(LoginRequiredMixin, View):
             'status': 'Confirmed',
             'count': len(confirmed_orders),
         }
-        return render(request, 'vendor_orders_to_deliver.html', context)
+        return render(request, 'Vendor/vendor_orders_to_deliver.html', context)
 
 
 @method_decorator(vendor_required, name='dispatch')
@@ -500,7 +803,7 @@ class VendorDeliveredOrdersView(LoginRequiredMixin, View):
             'status': 'Delivered',
             'count': len(delivered_orders),
         }
-        return render(request, 'vendor_delivered_orders.html', context)
+        return render(request, 'Vendor/vendor_delivered_orders.html', context)
 
 
 @method_decorator(vendor_required, name='dispatch')
@@ -631,14 +934,54 @@ class CheckoutView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         cart = get_object_or_404(Cart, user=request.user)
         cart_items = CartItem.objects.filter(cart=cart)
-        total_price = sum(item.product.price * item.quantity for item in cart_items)
         
-        order = Order.objects.create(user=request.user, total_price=total_price)
+        user_lat = request.POST.get('latitude')
+        user_lon = request.POST.get('longitude')
+        
+        if user_lat and user_lon:
+            request.user.latitude = float(user_lat)
+            request.user.longitude = float(user_lon)
+            request.user.save(update_fields=['latitude', 'longitude'])
+
+        shops = CustomUser.objects.filter(role='VENDOR', vendor_status='APPROVED').exclude(latitude__isnull=True, longitude__isnull=True)
+        
+        nearest_shop = None
+        min_distance = float('inf')
+
+        if user_lat and user_lon:
+            lat = float(user_lat)
+            lon = float(user_lon)
+            for shop in shops:
+                dist = calculate_distance(lat, lon, shop.latitude, shop.longitude)
+                if dist < min_distance:
+                    min_distance = dist
+                    nearest_shop = shop
+
+        DELIVERY_RADIUS_KM = 25.0
+        FEE_PER_KM = 1.50
+
+        if user_lat and user_lon and min_distance > DELIVERY_RADIUS_KM:
+            messages.error(request, "Sorry, there are no shops within your delivery radius.")
+            return redirect('view_cart')
+
+        delivery_fee = round(min_distance * FEE_PER_KM, 2) if nearest_shop else 0.00
+
+        subtotal = sum(item.product.price * item.quantity for item in cart_items)
+        total_price = float(subtotal) + float(delivery_fee)
+        
+        order = Order.objects.create(
+            user=request.user, 
+            total_price=total_price,
+            delivery_fee=delivery_fee,
+            distance_km=round(min_distance, 2) if nearest_shop else None,
+            assigned_shop=nearest_shop
+        )
         for item in cart_items:
             OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price=item.product.price)
             item.product.stock -= item.quantity
             item.product.save()
         cart.delete()
+        messages.success(request, f"Order placed! Delivery fee: ${delivery_fee}")
         return redirect('order_history')
 
 @method_decorator(customer_required, name='dispatch')

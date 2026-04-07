@@ -77,6 +77,9 @@
 
                 <!-- Customer Info -->
                 <div style="background: linear-gradient(135deg, var(--td-cream) 0%, #FFF9F0 100%); padding: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                    <h6 class="mb-3" style="color: var(--td-brown); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8;">
+                        <i class="bi bi-person-circle me-1"></i>Customer Information
+                    </h6>
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <div class="d-flex align-items-center">
@@ -104,54 +107,132 @@
                     </div>
                 </div>
 
+                <!-- Order Details Section -->
+                <div style="background: #F8F9FA; padding: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.05);">
+                    <h6 class="mb-3" style="color: var(--td-brown); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8;">
+                        <i class="bi bi-info-circle me-1"></i>Order Details
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(201, 163, 86, 0.15); display: flex; align-items: center; justify-content: center; margin-right: 0.75rem;">
+                                    <i class="bi bi-currency-rupee" style="color: var(--td-gold); font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Total Amount</small>
+                                    <strong style="color: var(--td-brown); font-size: 0.95rem;">NPR {{ entry.order.total_price }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(93, 57, 49, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 0.75rem;">
+                                    <i class="bi bi-truck" style="color: var(--td-brown); font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Delivery Fee</small>
+                                    <strong style="color: var(--td-brown); font-size: 0.95rem;">NPR {{ entry.order.delivery_fee }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% if entry.order.distance_km %}
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(52, 152, 219, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 0.75rem;">
+                                    <i class="bi bi-geo-alt" style="color: #3498DB; font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Distance</small>
+                                    <strong style="color: var(--td-brown); font-size: 0.95rem;">{{ entry.order.distance_km|floatformat:1 }} km</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if entry.order.assigned_shop %}
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(39, 174, 96, 0.1); display: flex; align-items: center; justify-content: center; margin-right: 0.75rem;">
+                                    <i class="bi bi-shop" style="color: #27AE60; font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Assigned Shop</small>
+                                    <strong style="color: var(--td-brown); font-size: 0.95rem;">{{ entry.order.assigned_shop.first_name }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <!-- Order Items Table -->
-                <div class="table-responsive">
-                    <table class="table mb-0" style="border: none;">
-                        <thead style="background: #FAFAF8;">
-                            <tr>
-                                <th class="ps-4" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">PRODUCT</th>
-                                <th class="text-center" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">PRICE</th>
-                                <th class="text-center" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">QTY</th>
-                                <th class="text-center" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">SUBTOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in entry.items %}
-                            <tr style="border-top: 1px solid rgba(0,0,0,0.03);">
-                                <td class="ps-4 align-middle">
-                                    <div class="d-flex align-items-center">
-                                        {% if item.product.image %}
-                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 1rem;">
-                                        {% else %}
-                                        <div style="width: 50px; height: 50px; background: var(--td-cream); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 1rem; color: #D4A574;">
-                                            <i class="bi bi-image"></i>
+                <div class="p-3">
+                    <h6 class="mb-3 ps-2" style="color: var(--td-brown); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8;">
+                        <i class="bi bi-box-seam me-1"></i>Products You Sold
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table mb-0" style="border: none;">
+                            <thead style="background: #FAFAF8;">
+                                <tr>
+                                    <th class="ps-4" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">PRODUCT</th>
+                                    <th class="text-center" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">UNIT PRICE</th>
+                                    <th class="text-center" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">QUANTITY</th>
+                                    <th class="text-center pe-4" style="color: var(--td-brown); font-weight: 700; border: none; font-size: 0.9rem; letter-spacing: 0.3px;">SUBTOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in entry.items %}
+                                <tr style="border-top: 1px solid rgba(0,0,0,0.03);">
+                                    <td class="ps-4 align-middle py-3">
+                                        <div class="d-flex align-items-center">
+                                            {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 10px; margin-right: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                            {% else %}
+                                            <div style="width: 60px; height: 60px; background: var(--td-cream); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 1rem; color: #D4A574; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                                <i class="bi bi-image" style="font-size: 1.5rem;"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <span style="color: var(--td-brown); font-weight: 600; letter-spacing: -0.2px; font-size: 0.95rem;">{{ item.product.name }}</span>
+                                                {% if item.product.category %}
+                                                <small class="d-block text-muted mt-1" style="font-size: 0.8rem;">
+                                                    <i class="bi bi-tag me-1"></i>{{ item.product.category.name }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                        {% endif %}
-                                        <span style="color: var(--td-brown); font-weight: 600; letter-spacing: -0.2px;">{{ item.product.name }}</span>
-                                    </div>
-                                </td>
-                                <td class="text-center align-middle" style="color: var(--td-text-muted); font-weight: 500;">${{ item.price }}</td>
-                                <td class="text-center align-middle" style="color: var(--td-text-muted); font-weight: 500;">{{ item.quantity }}</td>
-                                <td class="text-center align-middle" style="font-weight: 700; color: var(--td-gold); letter-spacing: -0.3px;">${{ item.subtotal }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td class="text-center align-middle" style="color: var(--td-text-muted); font-weight: 600; font-size: 0.95rem;">NPR {{ item.price }}</td>
+                                    <td class="text-center align-middle">
+                                        <span style="background: var(--td-cream); color: var(--td-gold); padding: 0.35rem 0.85rem; border-radius: 20px; font-weight: 700; font-size: 0.9rem;">
+                                            × {{ item.quantity }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center align-middle pe-4" style="font-weight: 700; color: var(--td-gold); letter-spacing: -0.3px; font-size: 1rem;">NPR {{ item.subtotal }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Card Footer - Total & Action -->
-                <div style="background: #FAFAF8; padding: 1.5rem; border-top: 1px solid rgba(0,0,0,0.03);">
+                <div style="background: #FAFAF8; padding: 1.5rem; border-top: 2px solid rgba(201, 163, 86, 0.2);">
                     <div class="row align-items-center">
-                        <div class="col">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap">
-                                <small class="text-muted" style="font-weight: 600; letter-spacing: 0.2px;">{{ entry.items|length }} item{{ entry.items|length|pluralize }} from your store</small>
-                                <h5 class="mb-0" style="font-family: 'Playfair Display', serif; color: var(--td-gold); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.5px;">
-                                    ${{ entry.vendor_total }}
-                                </h5>
+                        <div class="col-md-6">
+                            <div class="d-flex flex-column">
+                                <small class="text-muted mb-2" style="font-weight: 600; letter-spacing: 0.2px; font-size: 0.85rem;">
+                                    <i class="bi bi-basket me-1"></i>{{ entry.items|length }} item{{ entry.items|length|pluralize }} from your store
+                                </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span style="font-size: 0.9rem; color: var(--td-text-muted); font-weight: 600;">Your Earnings:</span>
+                                    <h4 class="mb-0" style="font-family: 'Playfair Display', serif; color: var(--td-gold); font-weight: 700; font-size: 1.6rem; letter-spacing: -0.5px;">
+                                        NPR {{ entry.vendor_total }}
+                                    </h4>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-auto mt-3 mt-md-0">
-                            <form method="POST" action="{% url 'vendor_update_order_status' entry.order.id %}" class="d-flex gap-2 mb-0">
+                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                            <form method="POST" action="{% url 'vendor_update_order_status' entry.order.id %}" class="d-flex gap-2 justify-content-md-end mb-0">
                                 {% csrf_token %}
                                 <select name="status" class="form-select form-select-sm" style="width: auto; border: 2px solid var(--td-gold); border-radius: 8px; font-size: 0.9rem; color: var(--td-brown); font-weight: 600; background: white; padding: 0.5rem 0.8rem;">
                                     <option value="Pending" selected>Mark as...</option>

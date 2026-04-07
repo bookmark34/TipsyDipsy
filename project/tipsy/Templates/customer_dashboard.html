@@ -30,7 +30,7 @@
                     <p class="card-text text-truncate">{{ product.description }}</p>
                     
                     <div class="d-flex justify-content-between align-items-center mt-3">
-                        <span class="td-price">${{ product.price }}</span>
+                        <span class="td-price">NPR {{ product.price }}</span>
                         {% if product.stock > 0 %}
                         <span class="td-badge td-badge-stock">In Stock</span>
                         {% else %}

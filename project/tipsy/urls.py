@@ -9,7 +9,7 @@ from .views import (
     ProductCreateView, ProductUpdateView, ProductDeleteView,
     CustomerDashboardView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
-    CheckoutView, OrderHistoryView
+    CheckoutView, OrderHistoryView, vendor_export_report
 )
 
 urlpatterns = [
@@ -30,6 +30,7 @@ urlpatterns = [
     
     # Vendor URLs
     path("vendor/dashboard/", VendorDashboardView.as_view(), name="vendor_dashboard"),
+    path("vendor/export-report/", vendor_export_report, name="vendor_export_report"),
     path("vendor/product/add/", ProductCreateView.as_view(), name="add_product"),
     path("vendor/product/<int:pk>/edit/", ProductUpdateView.as_view(), name="edit_product"),
     path("vendor/product/<int:pk>/delete/", ProductDeleteView.as_view(), name="delete_product"),

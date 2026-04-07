@@ -35,9 +35,9 @@
                                         <span style="font-weight: 500;">{{ item.product.name }}</span>
                                     </div>
                                 </td>
-                                <td class="text-center align-middle">${{ item.product.price }}</td>
+                                <td class="text-center align-middle">NPR {{ item.product.price }}</td>
                                 <td class="text-center align-middle">{{ item.quantity }}</td>
-                                <td class="text-center align-middle" style="font-weight: 600; color: var(--td-espresso);">${{ item.subtotal }}</td>
+                                <td class="text-center align-middle" style="font-weight: 600; color: var(--td-espresso);">NPR {{ item.subtotal }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -52,7 +52,7 @@
                 
                 <div class="td-summary-row">
                     <span>Subtotal</span>
-                    <span>${{ total_price }}</span>
+                    <span>NPR {{ total_price }}</span>
                 </div>
                 
                 <div class="td-summary-row">
@@ -62,7 +62,7 @@
                 
                 <div class="td-summary-total">
                     <strong>Total</strong>
-                    <strong>${{ total_price }}</strong>
+                    <strong>NPR {{ total_price }}</strong>
                 </div>
                 
                 <div class="mt-4">

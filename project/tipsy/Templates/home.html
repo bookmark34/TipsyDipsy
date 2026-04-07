@@ -150,7 +150,7 @@
                     </h5>
                     <p class="card-text">{{ product.description|truncatechars:50 }}</p>
                     <div class="d-flex justify-content-between align-items-center mt-auto">
-                        <span class="td-price">${{ product.price }}</span>
+                        <span class="td-price">NPR {{ product.price }}</span>
                         <a href="{% url 'product_detail' id=product.id %}" class="btn btn-td-primary btn-sm">
                             View <i class="bi bi-arrow-right ms-1"></i>
                         </a>

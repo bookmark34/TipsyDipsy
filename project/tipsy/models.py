@@ -28,6 +28,10 @@ class CustomUser(AbstractUser):
     vendor_status = models.CharField(max_length=10, choices=VENDOR_STATUS_CHOICES, default='PENDING')
     email_verified = models.BooleanField(default=False)
     email_verification_token = models.CharField(max_length=255, blank=True, null=True)
+    latitude = models.FloatField(null=True, blank=True, help_text="Latitude for location-based delivery")
+    longitude = models.FloatField(null=True, blank=True, help_text="Longitude for location-based delivery")
+    pan_number = models.CharField(max_length=20, blank=True, null=True, help_text="PAN Number for Vendors")
+    pan_document = models.FileField(upload_to='vendor_documents/', blank=True, null=True, help_text="PAN Document Upload")
     objects = CustomUserManager()
     
     def __str__(self):
@@ -86,6 +90,9 @@ class CartItem(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    delivery_fee = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    distance_km = models.FloatField(null=True, blank=True, help_text="Distance from selected shop in km")
+    assigned_shop = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders', help_text="The closest vendor matching this order")
     status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Confirmed', 'Confirmed'), ('Delivered', 'Delivered')], default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
 

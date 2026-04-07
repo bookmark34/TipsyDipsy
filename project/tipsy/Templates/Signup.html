@@ -11,7 +11,7 @@
                 </div>
 
                 <div class="td-auth-body td-form">
-                    <form method="POST" novalidate>
+                    <form method="POST" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
 
                         <!-- Role Selection -->
@@ -72,6 +72,22 @@
                             <div class="text-danger small">{{ form.phone_number.errors }}</div>
                         </div>
 
+                        <!-- Vendor-specific fields (shown only when Vendor role is selected) -->
+                        <div id="vendor-fields" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">PAN Number <span class="text-danger">*</span></label>
+                                {{ form.pan_number }}
+                                <div class="text-danger small">{{ form.pan_number.errors }}</div>
+                                <small class="text-muted">Required for vendor registration</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">PAN Document <span class="text-danger">*</span></label>
+                                {{ form.pan_document }}
+                                <div class="text-danger small">{{ form.pan_document.errors }}</div>
+                                <small class="text-muted">Upload a clear copy of your PAN card (PDF, JPG, or PNG)</small>
+                            </div>
+                        </div>
+
                         <!-- Passwords -->
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -99,4 +115,29 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Show/hide vendor-specific fields based on role selection
+    document.addEventListener('DOMContentLoaded', function() {
+        const roleRadios = document.querySelectorAll('input[name="role"]');
+        const vendorFields = document.getElementById('vendor-fields');
+        
+        function toggleVendorFields() {
+            const selectedRole = document.querySelector('input[name="role"]:checked');
+            if (selectedRole && selectedRole.value === 'VENDOR') {
+                vendorFields.style.display = 'block';
+            } else {
+                vendorFields.style.display = 'none';
+            }
+        }
+        
+        // Add event listeners to role radio buttons
+        roleRadios.forEach(radio => {
+            radio.addEventListener('change', toggleVendorFields);
+        });
+        
+        // Check initial state on page load
+        toggleVendorFields();
+    });
+</script>
 {% endblock %}

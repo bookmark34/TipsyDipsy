@@ -39,7 +39,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="text-center align-middle">${{ item.product.price }}</td>
+                                <td class="text-center align-middle">NPR {{ item.product.price }}</td>
                                 <td class="text-center align-middle">
                                     <form method="POST" action="{% url 'update_cart' item.id %}" class="d-inline">
                                         {% csrf_token %}
@@ -52,7 +52,7 @@
                                     </form>
                                 </td>
                                 <td class="text-center align-middle">
-                                    <strong style="color: var(--td-espresso);">${{ item.subtotal }}</strong>
+                                    <strong style="color: var(--td-espresso);">NPR {{ item.subtotal }}</strong>
                                 </td>
                                 <td class="text-center align-middle">
                                     <a href="{% url 'remove_from_cart' item.id %}" class="btn btn-td-danger btn-sm" style="padding: 0.3rem 0.55rem;">
@@ -73,12 +73,12 @@
                 
                 <div class="td-summary-row">
                     <span>Items ({{ cart_items|length }})</span>
-                    <span>${{ total_price }}</span>
+                    <span>NPR {{ total_price }}</span>
                 </div>
                 
                 <div class="td-summary-total">
                     <strong>Total</strong>
-                    <strong>${{ total_price }}</strong>
+                    <strong>NPR {{ total_price }}</strong>
                 </div>
                 
                 <div class="mt-4">

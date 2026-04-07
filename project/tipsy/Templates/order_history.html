@@ -40,8 +40,8 @@
                         <tr>
                             <td class="ps-4">{{ item.product.name }}</td>
                             <td class="text-center">{{ item.quantity }}</td>
-                            <td class="text-center">${{ item.price }}</td>
-                            <td class="text-center" style="font-weight: 600;">${{ item.subtotal }}</td>
+                            <td class="text-center">NPR {{ item.price }}</td>
+                            <td class="text-center" style="font-weight: 600;">NPR {{ item.subtotal }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -50,7 +50,7 @@
         </div>
         <div class="td-order-footer">
             <span style="color: var(--td-text-muted); font-size: 0.85rem;">{{ order.orderitem_set.count }} item{{ order.orderitem_set.count|pluralize }}</span>
-            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">Total: ${{ order.total_price }}</span>
+            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">Total: NPR {{ order.total_price }}</span>
         </div>
     </div>
     {% endfor %}

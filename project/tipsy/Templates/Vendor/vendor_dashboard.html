@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="py-4" style="background: linear-gradient(180deg, rgba(251,247,242,0.5) 0%, rgba(255,255,255,0) 100%);">
+    <!-- Header Section -->
+    <div class="container mb-4">
+        <div class="row align-items-center mb-4">
+            <div class="col">
+                <h1 class="td-section-title mb-2" style="font-size: 2.2rem; color: var(--td-brown);">Vendor Dashboard</h1>
+                <p class="text-muted mb-0" style="font-weight: 500; letter-spacing: 0.3px; opacity: 0.9;">Manage your products and track your sales performance</p>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex gap-2">
+                    <a href="{% url 'vendor_export_report' %}" class="btn" style="background: linear-gradient(135deg, #27AE60, #229954); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);">
+                        Export Report
+                    </a>
+                    <a href="{% url 'add_product' %}" class="btn" style="background: linear-gradient(135deg, var(--td-gold), #E8C574); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(201, 163, 86, 0.2);">
+                        Add Product
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Orders -->
+            <div class="col-md-3 col-sm-6">
+                <div style="border: none; background: white; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); overflow: hidden; border-left: 4px solid var(--td-gold); transition: all 0.3s ease; padding: 1.5rem;">
+                    <h6 class="mb-2" style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--td-text-muted); text-transform: uppercase;">Total Orders</h6>
+                    <h2 style="color: var(--td-gold); margin: 0; font-size: 2.5rem; font-weight: 700; letter-spacing: -1px;">{{ sales_summary.delivered_orders_count }}</h2>
+                    <small class="text-muted" style="font-size: 0.85rem;">Completed deliveries</small>
+                </div>
+            </div>
+
+            <!-- Total Sales -->
+            <div class="col-md-3 col-sm-6">
+                <div style="border: none; background: white; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); overflow: hidden; border-left: 4px solid #27AE60; transition: all 0.3s ease; padding: 1.5rem;">
+                    <h6 class="mb-2" style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--td-text-muted); text-transform: uppercase;">Total Sales</h6>
+                    <h2 style="color: #27AE60; margin: 0; font-size: 2.5rem; font-weight: 700; letter-spacing: -1px;">NPR {{ sales_summary.total_sales|floatformat:0 }}</h2>
+                    <small class="text-muted" style="font-size: 0.85rem;">All time earnings</small>
+                </div>
+            </div>
+
+            <!-- Last 30 Days Sales -->
+            <div class="col-md-3 col-sm-6">
+                <div style="border: none; background: white; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); overflow: hidden; border-left: 4px solid #8B7B73; transition: all 0.3s ease; padding: 1.5rem;">
+                    <h6 class="mb-2" style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--td-text-muted); text-transform: uppercase;">Last 30 Days</h6>
+                    <h2 style="color: #8B7B73; margin: 0; font-size: 2.5rem; font-weight: 700; letter-spacing: -1px;">NPR {{ sales_summary.sales_last_30_days|floatformat:0 }}</h2>
+                    <small class="text-muted" style="font-size: 0.85rem;">Recent earnings</small>
+                </div>
+            </div>
+
+            <!-- Units Sold -->
+            <div class="col-md-3 col-sm-6">
+                <div style="border: none; background: white; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.06); overflow: hidden; border-left: 4px solid #3498DB; transition: all 0.3s ease; padding: 1.5rem;">
+                    <h6 class="mb-2" style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--td-text-muted); text-transform: uppercase;">Units Sold</h6>
+                    <h2 style="color: #3498DB; margin: 0; font-size: 2.5rem; font-weight: 700; letter-spacing: -1px;">{{ sales_summary.units_sold }}</h2>
+                    <small class="text-muted" style="font-size: 0.85rem;">Total items sold</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-12">
+                <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+                    <h6 class="mb-3" style="color: var(--td-brown); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.3px; text-transform: uppercase;">
+                        Quick Actions
+                    </h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'vendor_new_orders' %}" class="btn btn-sm" style="background: rgba(201, 163, 86, 0.1); color: var(--td-gold); border: 2px solid rgba(201, 163, 86, 0.2); font-weight: 600; border-radius: 8px; padding: 0.6rem 1.2rem;">
+                            New Orders
+                        </a>
+                        <a href="{% url 'vendor_orders_to_deliver' %}" class="btn btn-sm" style="background: rgba(139, 123, 115, 0.1); color: #8B7B73; border: 2px solid rgba(139, 123, 115, 0.2); font-weight: 600; border-radius: 8px; padding: 0.6rem 1.2rem;">
+                            To Deliver
+                        </a>
+                        <a href="{% url 'vendor_delivered_orders' %}" class="btn btn-sm" style="background: rgba(39, 174, 96, 0.1); color: #27AE60; border: 2px solid rgba(39, 174, 96, 0.2); font-weight: 600; border-radius: 8px; padding: 0.6rem 1.2rem;">
+                            Delivered
+                        </a>
+                        <a href="{% url 'add_product' %}" class="btn btn-sm" style="background: rgba(52, 152, 219, 0.1); color: #3498DB; border: 2px solid rgba(52, 152, 219, 0.2); font-weight: 600; border-radius: 8px; padding: 0.6rem 1.2rem;">
+                            Add New Product
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Section -->
+    <div class="container">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h3 style="color: var(--td-brown); font-weight: 700; font-size: 1.3rem; margin: 0;">
+                Your Products
+            </h3>
+            <span class="badge" style="background: var(--td-cream); color: var(--td-gold); padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 600;">
+                {{ products|length }} Product{{ products|length|pluralize }}
+            </span>
+        </div>
+
+    {% if products %}
+    <div class="row g-4">
+        {% for product in products %}
+        <div class="col-md-6 col-lg-4">
+            <div class="td-card h-100" style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 2px 12px rgba(0,0,0,0.06); transition: all 0.3s ease;">
+                <div class="td-img-wrap">
+                    {% if product.image %}
+                    <img src="{{ product.image.url }}" class="td-card-img w-100" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                    <div class="td-no-image" style="height: 200px; background: var(--td-cream); display: flex; align-items: center; justify-content: center;">
+                        <div style="font-size: 3rem; color: #D4A574; opacity: 0.4;">No Image</div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body" style="padding: 1.5rem;">
+                    <h5 class="card-title" style="color: var(--td-brown); font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">{{ product.name }}</h5>
+                    <p class="card-text text-truncate" style="color: var(--td-text-muted); font-size: 0.9rem; margin-bottom: 1rem;">{{ product.description }}</p>
+                    {% if product.category %}
+                    <span class="badge mb-3" style="background: rgba(201, 163, 86, 0.15); color: var(--td-gold); font-size: 0.8rem; padding: 0.35rem 0.7rem;">
+                        {{ product.category.name }}
+                    </span>
+                    {% endif %}
+                    <div class="d-flex justify-content-between align-items-center mt-3" style="padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.06);">
+                        <div>
+                            <small class="d-block text-muted" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Price</small>
+                            <span class="td-price" style="font-size: 1.4rem; font-weight: 700; color: var(--td-gold);">NPR {{ product.price }}</span>
+                        </div>
+                        <div class="text-end">
+                            <small class="d-block text-muted" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Stock</small>
+                            <span style="font-size: 1.1rem; color: var(--td-brown); font-weight: 600;">{{ product.stock }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer d-flex gap-2" style="background: #FAFAF8; border-top: 1px solid rgba(0,0,0,0.06); padding: 1rem;">
+                    <a href="{% url 'edit_product' product.id %}" class="btn btn-sm flex-grow-1" style="background: white; color: var(--td-gold); border: 2px solid var(--td-gold); font-weight: 600; border-radius: 8px; padding: 0.6rem;">
+                        Edit
+                    </a>
+                    <a href="{% url 'delete_product' product.id %}" class="btn btn-sm flex-grow-1" style="background: white; color: #E74C3C; border: 2px solid #E74C3C; font-weight: 600; border-radius: 8px; padding: 0.6rem;">
+                        Delete
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="td-empty" style="text-align: center; padding: 4rem 2rem; background: white; border-radius: 12px; border: 2px dashed rgba(201, 163, 86, 0.3);">
+        <div style="font-size: 4rem; color: var(--td-gold); opacity: 0.3; margin-bottom: 1rem;">📦</div>
+        <h4 style="color: var(--td-brown); font-weight: 600; margin-bottom: 0.5rem;">No products yet</h4>
+        <p style="color: var(--td-text-muted); margin-bottom: 1.5rem;">Start building your catalog by adding your first product.</p>
+        <a href="{% url 'add_product' %}" class="btn" style="background: linear-gradient(135deg, var(--td-gold), #E8C574); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
+            Add Your First Product
+        </a>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
