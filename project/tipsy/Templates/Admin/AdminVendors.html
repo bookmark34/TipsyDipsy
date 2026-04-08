@@ -61,6 +61,7 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-danger">Reject</button>
               </form>
+              <a href="{% url 'admin_change_user_password' vendor.id %}" class="btn btn-sm btn-outline-primary">Change Password</a>
             </td>
           </tr>
           {% endfor %}
@@ -106,6 +107,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
               <small class="badge text-bg-success">Approved</small>
+              <a href="{% url 'admin_change_user_password' vendor.id %}" class="btn btn-sm btn-outline-primary">Change Password</a>
               <form method="post" action="{% url 'admin_remove_vendor' vendor.id %}" onsubmit="return confirm('Remove this approved vendor? This action cannot be undone.');">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline-danger">Remove Vendor</button>
@@ -150,10 +152,13 @@
                 {% endif %}
               </div>
             </div>
-            <form method="post" action="{% url 'admin_approve_vendor' vendor.id %}">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline-success">Approve Now</button>
-            </form>
+            <div class="d-flex align-items-center gap-2">
+              <a href="{% url 'admin_change_user_password' vendor.id %}" class="btn btn-sm btn-outline-primary">Change Password</a>
+              <form method="post" action="{% url 'admin_approve_vendor' vendor.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-success">Approve Now</button>
+              </form>
+            </div>
           </li>
           {% endfor %}
         </ul>

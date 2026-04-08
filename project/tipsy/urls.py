@@ -4,13 +4,14 @@ from .views import (
     SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
     AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView, AdminRemoveVendorView,
     admin_export_report_pdf,
-    AdminProductsView, AdminOrdersView, AdminCustomersView,
+    AdminProductsView, AdminOrdersView, AdminCustomersView, AdminChangeUserPasswordView,
     VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
-    VendorNewOrdersView, VendorOrdersToDeliverView, VendorDeliveredOrdersView,
+    VendorNewOrdersView, VendorOrdersToDeliverView, VendorDeliveredOrdersView, VendorProductsView,
+    vendor_export_report, vendor_export_products_pdf,
     ProductCreateView, ProductUpdateView, ProductDeleteView,
-    CustomerDashboardView,
+    CustomerDashboardView, CustomerProfileUpdateView, VendorProfileUpdateView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
-    CheckoutView, OrderHistoryView, vendor_export_report
+    CheckoutView, OrderHistoryView
 )
 
 urlpatterns = [
@@ -27,6 +28,7 @@ urlpatterns = [
     path("control/vendors/<int:user_id>/approve/", AdminApproveVendorView.as_view(), name="admin_approve_vendor"),
     path("control/vendors/<int:user_id>/reject/", AdminRejectVendorView.as_view(), name="admin_reject_vendor"),
     path("control/vendors/<int:user_id>/remove/", AdminRemoveVendorView.as_view(), name="admin_remove_vendor"),
+    path("control/users/<int:user_id>/change-password/", AdminChangeUserPasswordView.as_view(), name="admin_change_user_password"),
     path("control/products/", AdminProductsView.as_view(), name="admin_products"),
     path("control/orders/", AdminOrdersView.as_view(), name="admin_orders"),
     path("control/customers/", AdminCustomersView.as_view(), name="admin_customers"),
@@ -34,6 +36,8 @@ urlpatterns = [
     # Vendor URLs
     path("vendor/dashboard/", VendorDashboardView.as_view(), name="vendor_dashboard"),
     path("vendor/export-report/", vendor_export_report, name="vendor_export_report"),
+    path("vendor/products/", VendorProductsView.as_view(), name="vendor_products"),
+    path("vendor/products/export-pdf/", vendor_export_products_pdf, name="vendor_export_products_pdf"),
     path("vendor/product/add/", ProductCreateView.as_view(), name="add_product"),
     path("vendor/product/<int:pk>/edit/", ProductUpdateView.as_view(), name="edit_product"),
     path("vendor/product/<int:pk>/delete/", ProductDeleteView.as_view(), name="delete_product"),
@@ -42,6 +46,7 @@ urlpatterns = [
     path("vendor/orders/to-deliver/", VendorOrdersToDeliverView.as_view(), name="vendor_orders_to_deliver"),
     path("vendor/orders/delivered/", VendorDeliveredOrdersView.as_view(), name="vendor_delivered_orders"),
     path("vendor/orders/<int:order_id>/status/", VendorUpdateOrderStatusView.as_view(), name="vendor_update_order_status"),
+    path("vendor/profile/", VendorProfileUpdateView.as_view(), name="vendor_profile"),
     
     # Customer URLs
     path("shop/", CustomerDashboardView.as_view(), name="customer_dashboard"),
@@ -53,4 +58,5 @@ urlpatterns = [
     path("cart/remove/<int:item_id>/", RemoveFromCartView.as_view(), name="remove_from_cart"),
     path("checkout/", CheckoutView.as_view(), name="checkout"),
     path("orders/", OrderHistoryView.as_view(), name="order_history"),
+    path("profile/", CustomerProfileUpdateView.as_view(), name="customer_profile"),
 ]

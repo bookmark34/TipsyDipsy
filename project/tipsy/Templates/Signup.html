@@ -11,7 +11,7 @@
                 </div>
 
                 <div class="td-auth-body td-form">
-                    <form method="POST" enctype="multipart/form-data" novalidate>
+                    <form method="POST" enctype="multipart/form-data" novalidate id="signup-form">
                         {% csrf_token %}
 
                         <!-- Role Selection -->
@@ -70,6 +70,14 @@
                             <label class="form-label">Phone number</label>
                             {{ form.phone_number }}
                             <div class="text-danger small">{{ form.phone_number.errors }}</div>
+                        </div>
+
+                        <!-- Customer-specific DOB field -->
+                        <div class="mb-3" id="dob-field-wrap">
+                            <label class="form-label">Date of Birth</label>
+                            {{ form.date_of_birth }}
+                            <div class="text-danger small">{{ form.date_of_birth.errors }}</div>
+                            <small class="text-muted">Customers must be 18+ to purchase alcoholic products.</small>
                         </div>
 
                         <!-- Vendor-specific fields (shown only when Vendor role is selected) -->
@@ -132,13 +140,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         const roleRadios = document.querySelectorAll('input[name="role"]');
         const vendorFields = document.getElementById('vendor-fields');
+        const dobFieldWrap = document.getElementById('dob-field-wrap');
+        const signupForm = document.getElementById('signup-form');
+        const dobInput = document.getElementById('id_date_of_birth');
         
         function toggleVendorFields() {
             const selectedRole = document.querySelector('input[name="role"]:checked');
             if (selectedRole && selectedRole.value === 'VENDOR') {
                 vendorFields.style.display = 'block';
+                dobFieldWrap.style.display = 'none';
             } else {
                 vendorFields.style.display = 'none';
+                dobFieldWrap.style.display = 'block';
             }
         }
         
@@ -149,6 +162,25 @@
         
         // Check initial state on page load
         toggleVendorFields();
+
+        signupForm.addEventListener('submit', function(event) {
+            const selectedRole = document.querySelector('input[name="role"]:checked');
+            if (!selectedRole || selectedRole.value !== 'CUSTOMER') {
+                return;
+            }
+
+            if (!dobInput || !dobInput.value) {
+                alert('Please provide Date of Birth.');
+                event.preventDefault();
+                return;
+            }
+
+            const isOver18 = confirm('Are you over 18 years old? Click OK for Yes or Cancel for No.');
+            if (!isOver18) {
+                event.preventDefault();
+                alert('Sorry, you must be over 18 to continue.');
+            }
+        });
     });
 </script>
 {% endblock %}

@@ -20,6 +20,7 @@
             <th>Email</th>
             <th>Phone</th>
             <th>Joined</th>
+            <th class="text-end">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -30,6 +31,9 @@
             <td>{{ customer.email }}</td>
             <td>{{ customer.phone_number|default:'-' }}</td>
             <td>{{ customer.date_joined|date:"M d, Y" }}</td>
+            <td class="text-end">
+              <a href="{% url 'admin_change_user_password' customer.id %}" class="btn btn-sm btn-outline-primary">Change Password</a>
+            </td>
           </tr>
           {% endfor %}
         </tbody>

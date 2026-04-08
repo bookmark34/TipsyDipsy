@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import UserManager
+from datetime import date
 
 
 class CustomUserManager(UserManager):
@@ -34,6 +35,7 @@ class CustomUser(AbstractUser):
     pan_number = models.CharField(max_length=20, blank=True, null=True, help_text="PAN Number for Vendors")
     tax_document = models.FileField(upload_to='vendor_documents/', blank=True, null=True, help_text="Tax Clearance Certificate Upload")
     pan_document = models.FileField(upload_to='vendor_documents/', blank=True, null=True, help_text="PAN Document Upload")
+    date_of_birth = models.DateField(blank=True, null=True)
     objects = CustomUserManager()
     
     def __str__(self):
@@ -50,6 +52,18 @@ class CustomUser(AbstractUser):
 
     def is_approved_vendor(self):
         return self.is_vendor() and self.vendor_status == 'APPROVED'
+
+    def get_age(self):
+        if not self.date_of_birth:
+            return None
+        today = date.today()
+        return today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+
+    def is_age_verified(self, minimum_age=18):
+        age = self.get_age()
+        return age is not None and age >= minimum_age
 
 
 class Category(models.Model):

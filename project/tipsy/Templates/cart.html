@@ -13,9 +13,9 @@
                         <thead>
                             <tr>
                                 <th class="ps-4">Product</th>
-                                <th class="text-center">Price</th>
+                                <th class="text-center">Unit Price</th>
                                 <th class="text-center">Quantity</th>
-                                <th class="text-center">Total</th>
+                                <th class="text-center">Line Total</th>
                                 <th class="text-center" style="width: 60px;"></th>
                             </tr>
                         </thead>
@@ -39,20 +39,21 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="text-center align-middle">NPR {{ item.product.price }}</td>
+                                <td class="text-center align-middle">NPR {{ item.product.price|floatformat:2 }}</td>
                                 <td class="text-center align-middle">
-                                    <form method="POST" action="{% url 'update_cart' item.id %}" class="d-inline">
+                                    <form method="POST" action="{% url 'update_cart' item.id %}" class="d-inline qty-form">
                                         {% csrf_token %}
                                         <div class="input-group td-qty-input">
-                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control">
-                                            <button type="submit" class="btn">
+                                            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="30" class="form-control qty-input" data-stock="{{ item.product.stock }}" data-product-name="{{ item.product.name }}" data-item-id="{{ item.id }}" data-unit-price="{{ item.product.price }}">
+                                            <button type="button" class="btn reset-qty-btn" data-item-id="{{ item.id }}" title="Reset to 1">
                                                 <i class="bi bi-arrow-repeat"></i>
                                             </button>
                                         </div>
+                                        <button type="submit" style="display: none;" class="submit-qty-btn"></button>
                                     </form>
                                 </td>
                                 <td class="text-center align-middle">
-                                    <strong style="color: var(--td-espresso);">NPR {{ item.subtotal }}</strong>
+                                    <strong style="color: var(--td-espresso);" class="line-total" data-item-id="{{ item.id }}">NPR {{ item.subtotal|floatformat:2 }}</strong>
                                 </td>
                                 <td class="text-center align-middle">
                                     <a href="{% url 'remove_from_cart' item.id %}" class="btn btn-td-danger btn-sm" style="padding: 0.3rem 0.55rem;">
@@ -72,13 +73,13 @@
                 <h5><i class="bi bi-receipt me-2"></i>Order Summary</h5>
                 
                 <div class="td-summary-row">
-                    <span>Items ({{ cart_items|length }})</span>
-                    <span>NPR {{ total_price }}</span>
+                    <span>Items (<span id="total-items-count">{{ total_items }}</span>)</span>
+                    <span>NPR <span id="total-price-amount">{{ total_price|floatformat:2 }}</span></span>
                 </div>
                 
                 <div class="td-summary-total">
                     <strong>Total</strong>
-                    <strong>NPR {{ total_price }}</strong>
+                    <strong>NPR <span id="total-price-final">{{ total_price|floatformat:2 }}</span></strong>
                 </div>
                 
                 <div class="mt-4">
@@ -103,4 +104,168 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to update order summary
+    function updateOrderSummary() {
+        let totalPrice = 0;
+        let totalItems = 0;
+
+        // Loop through all quantity inputs
+        const qtyInputs = document.querySelectorAll('.qty-input');
+        qtyInputs.forEach(input => {
+            const qty = parseInt(input.value) || 0;
+            const unitPrice = parseFloat(input.getAttribute('data-unit-price'));
+            totalPrice += qty * unitPrice;
+            totalItems += qty;
+        });
+
+        // Update the summary display
+        const itemsCountElement = document.getElementById('total-items-count');
+        const totalPriceAmountElement = document.getElementById('total-price-amount');
+        const totalPriceFinalElement = document.getElementById('total-price-final');
+
+        if (itemsCountElement) itemsCountElement.textContent = totalItems;
+        if (totalPriceAmountElement) totalPriceAmountElement.textContent = totalPrice.toFixed(2);
+        if (totalPriceFinalElement) totalPriceFinalElement.textContent = totalPrice.toFixed(2);
+    }
+
+    // Handle reset quantity button
+    const resetButtons = document.querySelectorAll('.reset-qty-btn');
+    resetButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const form = this.closest('form');
+            const qtyInput = form.querySelector('.qty-input');
+            const itemId = this.getAttribute('data-item-id');
+            
+            qtyInput.value = 1;
+            updateOrderSummary();
+            const submitBtn = form.querySelector('.submit-qty-btn');
+            submitBtn.click();
+        });
+    });
+
+    // Handle quantity input validation
+    const qtyInputs = document.querySelectorAll('.qty-input');
+    qtyInputs.forEach(input => {
+        // Validate on change
+        input.addEventListener('change', function() {
+            const qty = parseInt(this.value);
+            const stock = parseInt(this.getAttribute('data-stock'));
+            const unitPrice = parseFloat(this.getAttribute('data-unit-price'));
+            const itemId = this.getAttribute('data-item-id');
+            const productName = this.getAttribute('data-product-name');
+            const MIN_QTY = 1;
+            const MAX_QTY = 30;
+
+            // Check if quantity is empty
+            if (!this.value || qty < MIN_QTY) {
+                alert(`Please enter a valid quantity (minimum 1 unit).`);
+                this.value = MIN_QTY;
+                updateOrderSummary();
+                return false;
+            }
+
+            // Check if quantity exceeds 30 units limit
+            if (qty > MAX_QTY) {
+                alert(`Maximum order limit is 30 units per item.\n\nYou selected: ${qty} units`);
+                this.value = MAX_QTY;
+                updateOrderSummary();
+                return false;
+            }
+
+            // Check if quantity exceeds available stock
+            if (qty > stock) {
+                alert(`Insufficient stock for "${productName}"!\n\n📦 Available stock: ${stock} units\n📌 You requested: ${qty} units\n\nWe've adjusted quantity to available stock.`);
+                this.value = stock;
+                updateOrderSummary();
+                return false;
+            }
+
+            // Update line total
+            const lineTotal = qty * unitPrice;
+            const lineTotalElement = document.querySelector(`.line-total[data-item-id="${itemId}"]`);
+            if (lineTotalElement) {
+                lineTotalElement.textContent = `NPR ${lineTotal.toFixed(2)}`;
+            }
+
+            updateOrderSummary();
+        });
+
+        // Validate on keyup (live feedback)
+        input.addEventListener('keyup', function() {
+            const qty = parseInt(this.value) || 0;
+            const stock = parseInt(this.getAttribute('data-stock'));
+            const unitPrice = parseFloat(this.getAttribute('data-unit-price'));
+            const itemId = this.getAttribute('data-item-id');
+            const MAX_QTY = 30;
+
+            // Update line total in real-time
+            const lineTotal = qty * unitPrice;
+            const lineTotalElement = document.querySelector(`.line-total[data-item-id="${itemId}"]`);
+            if (lineTotalElement) {
+                lineTotalElement.textContent = `NPR ${lineTotal.toFixed(2)}`;
+            }
+
+            // Update order summary total
+            updateOrderSummary();
+
+            // Visual feedback for invalid range
+            if (qty > MAX_QTY || qty > stock) {
+                this.style.borderColor = '#dc3545';
+                this.style.backgroundColor = '#fff5f5';
+            } else if (qty > 0) {
+                this.style.borderColor = '#28a745';
+                this.style.backgroundColor = '#f5fff5';
+            } else {
+                this.style.borderColor = '#ced4da';
+                this.style.backgroundColor = '#fff';
+            }
+        });
+
+        // Trigger initial styling
+        input.dispatchEvent(new Event('keyup'));
+    });
+
+    // Validate on form submit
+    const forms = document.querySelectorAll('.qty-form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const qtyInput = this.querySelector('.qty-input');
+            const qty = parseInt(qtyInput.value);
+            const stock = parseInt(qtyInput.getAttribute('data-stock'));
+            const productName = qtyInput.getAttribute('data-product-name');
+            const MAX_QTY = 30;
+
+            // Final validation before submission
+            if (qty < 1 || isNaN(qty)) {
+                e.preventDefault();
+                alert(`Please enter a valid quantity.`);
+                qtyInput.value = 1;
+                return false;
+            }
+
+            if (qty > MAX_QTY) {
+                e.preventDefault();
+                alert(`Maximum order limit is 30 units per item.\n\nYou selected: ${qty} units`);
+                qtyInput.value = MAX_QTY;
+                return false;
+            }
+
+            if (qty > stock) {
+                e.preventDefault();
+                alert(` Insufficient stock for "${productName}"!\n\n📦 Available stock: ${stock} units\n You requested: ${qty} units`);
+                qtyInput.value = stock;
+                return false;
+            }
+
+            // If all validations pass, allow submission
+            return true;
+        });
+    });
+});
+</script>
 {% endblock %}

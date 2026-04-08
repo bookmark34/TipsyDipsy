@@ -8,7 +8,14 @@ from django.conf import settings
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.http import HttpResponse
-from .forms import SignUpForm, LoginForm, ProductForm
+from .forms import (
+    SignUpForm,
+    LoginForm,
+    ProductForm,
+    AdminSetUserPasswordForm,
+    CustomerProfileForm,
+    VendorProfileForm,
+)
 from .models import CustomUser, Product, Category, Cart, CartItem, Order, OrderItem
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -34,6 +41,10 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     c = 2 * math.asin(math.sqrt(a))
     r = 6371
     return c * r
+
+
+def customer_can_purchase(user, minimum_age=18):
+    return user.is_customer() and user.is_age_verified(minimum_age)
 
 class SignUpView(CreateView):
     form_class = SignUpForm
@@ -540,6 +551,61 @@ class AdminCustomersView(LoginRequiredMixin, ListView):
         return CustomUser.objects.filter(role='CUSTOMER').order_by('-date_joined')
 
 
+@method_decorator(admin_required, name='dispatch')
+class AdminChangeUserPasswordView(LoginRequiredMixin, View):
+    template_name = 'Admin/AdminChangeUserPassword.html'
+
+    def get_target_user(self, user_id):
+        return get_object_or_404(CustomUser, id=user_id, role__in=['CUSTOMER', 'VENDOR'])
+
+    def get(self, request, user_id, *args, **kwargs):
+        target_user = self.get_target_user(user_id)
+        form = AdminSetUserPasswordForm(user=target_user)
+        return render(request, self.template_name, {'form': form, 'target_user': target_user})
+
+    def post(self, request, user_id, *args, **kwargs):
+        target_user = self.get_target_user(user_id)
+        form = AdminSetUserPasswordForm(request.POST, user=target_user)
+
+        if form.is_valid():
+            new_password = form.cleaned_data['new_password1']
+            target_user.set_password(new_password)
+            target_user.save(update_fields=['password'])
+
+            recipient_name = target_user.first_name or target_user.username
+            subject = 'TipsyDipsy Account Password Updated'
+            message = f"""Hello {recipient_name},
+
+Your account password was changed by an administrator.
+
+Account details:
+- Username: {target_user.username}
+- Role: {target_user.get_role_display()}
+- New Password: {new_password}
+
+If this change was expected, you can now log in with your new password.
+For security, please change this password after your next login.
+If you did not expect this change, please contact support immediately.
+
+Best regards,
+TipsyDipsy Team"""
+            send_mail(
+                subject,
+                message,
+                settings.EMAIL_HOST_USER,
+                [target_user.email],
+                fail_silently=True,
+            )
+
+            messages.success(request, f"Password updated successfully for {target_user.username}.")
+
+            if target_user.role == 'VENDOR':
+                return redirect('admin_vendors')
+            return redirect('admin_customers')
+
+        return render(request, self.template_name, {'form': form, 'target_user': target_user})
+
+
 
 @method_decorator(vendor_required, name='dispatch')
 class VendorDashboardView(LoginRequiredMixin, ListView):
@@ -1011,6 +1077,163 @@ class VendorDeliveredOrdersView(LoginRequiredMixin, View):
 
 
 @method_decorator(vendor_required, name='dispatch')
+class VendorProductsView(LoginRequiredMixin, ListView):
+    """Vendor page to view and manage their products with CRUD operations."""
+    model = Product
+    template_name = 'Vendor/vendor_products.html'
+    context_object_name = 'products'
+    paginate_by = 10
+
+    def get_queryset(self):
+        all_products = Product.objects.filter(vendor=self.request.user).order_by('-created_at')
+        filter_type = self.request.GET.get('filter', 'all')
+        
+        if filter_type == 'active':
+            return all_products.filter(stock__gt=10)
+        elif filter_type == 'low':
+            return all_products.filter(stock__lte=10, stock__gt=0)
+        elif filter_type == 'out':
+            return all_products.filter(stock=0)
+        else:
+            return all_products
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        all_products = Product.objects.filter(vendor=self.request.user)
+        
+        context['total_products'] = all_products.count()
+        
+        # Count low stock products (stock <= 10 but > 0)
+        context['low_stock_count'] = all_products.filter(stock__lte=10, stock__gt=0).count()
+        
+        # Calculate total inventory value and add to each product
+        total_value = 0
+        products_with_value = []
+        for product in context['products']:
+            product_value = float(product.price) * product.stock
+            total_value += product_value
+            product.item_value = product_value
+            products_with_value.append(product)
+        
+        context['products'] = products_with_value
+        context['total_value'] = total_value
+        context['current_filter'] = self.request.GET.get('filter', 'all')
+        return context
+
+
+@vendor_required
+def vendor_export_products_pdf(request):
+    """Export vendor's products as PDF with name, price, and stock details."""
+    from django.http import HttpResponse
+    from datetime import datetime
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from io import BytesIO
+    
+    # Get vendor's products
+    products = Product.objects.filter(vendor=request.user).order_by('name')
+    
+    # Create the HttpResponse object with PDF header
+    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="products_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    # Create PDF document
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=50, bottomMargin=50)
+    elements = []
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=12,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#8B7B73'),
+        alignment=TA_CENTER,
+        spaceAfter=20
+    )
+    
+    # Title
+    elements.append(Paragraph("PRODUCT INVENTORY", title_style))
+    elements.append(Paragraph(f"Vendor: {request.user.business_name or request.user.get_full_name()}", subtitle_style))
+    elements.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", subtitle_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    if products.exists():
+        # Product table
+        product_data = [['Product Name', 'Price (NPR)', 'Stock', 'Category', 'Created Date']]
+        
+        for product in products:
+            category_name = product.category.name if product.category else 'Uncategorized'
+            product_data.append([
+                product.name[:35],  # Truncate long names
+                f"NPR {product.price:,.2f}",
+                str(product.stock),
+                category_name[:20],
+                product.created_at.strftime('%d-%m-%Y')
+            ])
+        
+        product_table = Table(product_data, colWidths=[2.2*inch, 1.3*inch, 0.9*inch, 1.3*inch, 1.2*inch])
+        product_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5D3931')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ]))
+        elements.append(product_table)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Summary
+        total_value = sum(float(p.price * p.stock) for p in products)
+        summary_style = ParagraphStyle(
+            'Summary',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#5D3931'),
+            alignment=TA_RIGHT,
+        )
+        elements.append(Paragraph(
+            f"<b>Total Products:</b> {products.count()} | "
+            f"<b>Total Stock Value:</b> NPR {total_value:,.2f}",
+            summary_style
+        ))
+    else:
+        elements.append(Paragraph("No products found.", styles['Normal']))
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get the value of the BytesIO buffer and write it to the response
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response
+
+
+@method_decorator(vendor_required, name='dispatch')
 class ProductCreateView(LoginRequiredMixin, CreateView):
     model = Product
     form_class = ProductForm
@@ -1059,6 +1282,48 @@ class CustomerDashboardView(LoginRequiredMixin, ListView):
     context_object_name = 'products'
 
 
+@method_decorator(customer_required, name='dispatch')
+class CustomerProfileUpdateView(LoginRequiredMixin, UpdateView):
+    model = CustomUser
+    form_class = CustomerProfileForm
+    template_name = 'profile_update.html'
+    success_url = reverse_lazy('customer_dashboard')
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['profile_title'] = 'Customer Profile'
+        context['back_url_name'] = 'customer_dashboard'
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Profile updated successfully.')
+        return super().form_valid(form)
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorProfileUpdateView(LoginRequiredMixin, UpdateView):
+    model = CustomUser
+    form_class = VendorProfileForm
+    template_name = 'profile_update.html'
+    success_url = reverse_lazy('vendor_dashboard')
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['profile_title'] = 'Vendor Profile'
+        context['back_url_name'] = 'vendor_dashboard'
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Profile updated successfully.')
+        return super().form_valid(form)
+
+
 
 class ProductListView(ListView):
     model = Product
@@ -1088,30 +1353,68 @@ class ProductListView(ListView):
 class CartView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         cart, created = Cart.objects.get_or_create(user=request.user)
-        cart_items = CartItem.objects.filter(cart=cart)
+        cart_items = CartItem.objects.filter(cart=cart).select_related('product', 'product__category')
         total_price = sum(item.subtotal for item in cart_items)
-        return render(request, 'cart.html', {'cart_items': cart_items, 'total_price': total_price})
+        total_items = sum(item.quantity for item in cart_items)
+        return render(request, 'cart.html', {
+            'cart_items': cart_items,
+            'total_price': total_price,
+            'total_items': total_items,
+        })
 
 @method_decorator(customer_required, name='dispatch')
 class AddToCartView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
+        if not customer_can_purchase(request.user):
+            messages.error(request, 'Age verification required. Please update your date of birth in your profile to continue.')
+            return redirect('customer_profile')
+
         product = get_object_or_404(Product, id=self.kwargs['product_id'])
+
+        if product.stock <= 0:
+            messages.error(request, f"{product.name} is currently out of stock.")
+            return redirect('product_list')
+
         cart, created = Cart.objects.get_or_create(user=request.user)
         cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
         
         if not created:
+            if cart_item.quantity >= product.stock:
+                messages.warning(request, f"Only {product.stock} unit(s) of {product.name} are available.")
+                return redirect('view_cart')
             cart_item.quantity += 1
+
+        if created:
+            cart_item.quantity = 1
+
         cart_item.save()
+        messages.success(request, f"{product.name} added to cart.")
         return redirect('view_cart')
 
 @method_decorator(customer_required, name='dispatch')
 class UpdateCartView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         cart_item = get_object_or_404(CartItem, id=self.kwargs['item_id'], cart__user=request.user)
-        quantity = int(request.POST.get('quantity'))
-        if quantity > 0:
-            cart_item.quantity = quantity
-            cart_item.save()
+
+        try:
+            quantity = int(request.POST.get('quantity', '1'))
+        except (TypeError, ValueError):
+            messages.error(request, "Invalid quantity provided.")
+            return redirect('view_cart')
+
+        if quantity <= 0:
+            cart_item.delete()
+            messages.info(request, f"{cart_item.product.name} removed from cart.")
+            return redirect('view_cart')
+
+        if quantity > cart_item.product.stock:
+            cart_item.quantity = cart_item.product.stock
+            cart_item.save(update_fields=['quantity'])
+            messages.warning(request, f"Quantity adjusted to available stock ({cart_item.product.stock}).")
+            return redirect('view_cart')
+
+        cart_item.quantity = quantity
+        cart_item.save(update_fields=['quantity'])
         return redirect('view_cart')
 
 @method_decorator(customer_required, name='dispatch')
@@ -1126,8 +1429,12 @@ class RemoveFromCartView(LoginRequiredMixin, View):
 @method_decorator(customer_required, name='dispatch')
 class CheckoutView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
+        if not customer_can_purchase(request.user):
+            messages.error(request, 'Age verification required before purchasing alcoholic products.')
+            return redirect('customer_profile')
+
         cart = get_object_or_404(Cart, user=request.user)
-        cart_items = CartItem.objects.filter(cart=cart)
+        cart_items = CartItem.objects.filter(cart=cart).select_related('product')
         
         if not cart_items:
             return redirect('view_cart')
@@ -1136,8 +1443,27 @@ class CheckoutView(LoginRequiredMixin, View):
         return render(request, 'checkout.html', {'cart_items': cart_items, 'total_price': total_price})
 
     def post(self, request, *args, **kwargs):
+        if not customer_can_purchase(request.user):
+            messages.error(request, 'Age verification required before purchasing alcoholic products.')
+            return redirect('customer_profile')
+
         cart = get_object_or_404(Cart, user=request.user)
-        cart_items = CartItem.objects.filter(cart=cart)
+        cart_items = CartItem.objects.filter(cart=cart).select_related('product')
+
+        if not cart_items:
+            messages.error(request, "Your cart is empty.")
+            return redirect('view_cart')
+
+        # Prevent ordering unavailable quantities if stock changed after items were added.
+        for item in cart_items:
+            if item.product.stock <= 0:
+                messages.error(request, f"{item.product.name} is out of stock. Please update your cart.")
+                return redirect('view_cart')
+            if item.quantity > item.product.stock:
+                item.quantity = item.product.stock
+                item.save(update_fields=['quantity'])
+                messages.warning(request, f"{item.product.name} quantity adjusted to available stock ({item.product.stock}).")
+                return redirect('view_cart')
         
         user_lat = request.POST.get('latitude')
         user_lon = request.POST.get('longitude')
@@ -1183,9 +1509,9 @@ class CheckoutView(LoginRequiredMixin, View):
         for item in cart_items:
             OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price=item.product.price)
             item.product.stock -= item.quantity
-            item.product.save()
+            item.product.save(update_fields=['stock'])
         cart.delete()
-        messages.success(request, f"Order placed! Delivery fee: ${delivery_fee}")
+        messages.success(request, f"Order placed! Delivery fee: NPR {delivery_fee}")
         return redirect('order_history')
 
 @method_decorator(customer_required, name='dispatch')

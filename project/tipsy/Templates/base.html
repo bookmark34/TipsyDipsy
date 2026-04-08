@@ -60,10 +60,16 @@
               <a class="nav-link" href="{% url 'vendor_dashboard' %}"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="{% url 'vendor_products' %}"><i class="bi bi-box-seam me-1"></i>Products</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="{% url 'vendor_orders' %}"><i class="bi bi-receipt me-1"></i>Orders</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{% url 'add_product' %}"><i class="bi bi-plus-circle me-1"></i>Add Product</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'vendor_profile' %}"><i class="bi bi-person-circle me-1"></i>Profile</a>
             </li>
             {% else %}
             <li class="nav-item">
@@ -74,6 +80,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{% url 'order_history' %}"><i class="bi bi-clock-history me-1"></i>Orders</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'customer_profile' %}"><i class="bi bi-person-circle me-1"></i>Profile</a>
             </li>
             {% endif %}
 

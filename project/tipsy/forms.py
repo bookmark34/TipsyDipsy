@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.password_validation import validate_password
 from .models import CustomUser, Product
 from django.contrib.auth.forms import AuthenticationForm
+from datetime import date
 
 
 class SignUpForm(UserCreationForm):
@@ -13,6 +15,11 @@ class SignUpForm(UserCreationForm):
     email = forms.EmailField(required=True)
     address = forms.CharField(max_length=255, required=False)
     phone_number = forms.CharField(max_length=15, required=False)
+    date_of_birth = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        label='Date of Birth (For Customers)'
+    )
     business_name = forms.CharField(max_length=255, required=False, label="Business Name (For Vendors)")
     pan_number = forms.CharField(max_length=20, required=False, label="PAN Number (For Vendors)")
     pan_document = forms.FileField(required=False, label="PAN Document (For Vendors)")
@@ -26,7 +33,7 @@ class SignUpForm(UserCreationForm):
     
     class Meta:
         model = CustomUser
-        fields = ('username', 'first_name', 'last_name', 'email', 'address', 'phone_number', 'business_name', 'pan_number', 'pan_document', 'tax_document', 'role')
+        fields = ('username', 'first_name', 'last_name', 'email', 'address', 'phone_number', 'date_of_birth', 'business_name', 'pan_number', 'pan_document', 'tax_document', 'role')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -42,6 +49,18 @@ class SignUpForm(UserCreationForm):
         pan_number = cleaned_data.get('pan_number')
         pan_document = cleaned_data.get('pan_document')
         tax_document = cleaned_data.get('tax_document')
+        date_of_birth = cleaned_data.get('date_of_birth')
+
+        if role == 'CUSTOMER':
+            if not date_of_birth:
+                self.add_error('date_of_birth', 'Date of Birth is required for customers.')
+            else:
+                today = date.today()
+                age = today.year - date_of_birth.year - (
+                    (today.month, today.day) < (date_of_birth.month, date_of_birth.day)
+                )
+                if age < 18:
+                    self.add_error('date_of_birth', 'You must be at least 18 years old to register as a customer.')
 
         if role == 'VENDOR':
             if not business_name:
@@ -59,6 +78,7 @@ class SignUpForm(UserCreationForm):
         user.phone_number = self.cleaned_data['phone_number']
         user.address = self.cleaned_data["address"]
         user.role = self.cleaned_data['role']
+        user.date_of_birth = self.cleaned_data.get('date_of_birth')
         if self.cleaned_data.get('business_name'):
             user.business_name = self.cleaned_data['business_name']
         if self.cleaned_data.get('pan_number'):
@@ -95,3 +115,68 @@ class ProductForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for f in self.fields.values():
             f.widget.attrs["class"] = "form-control"
+
+
+class AdminSetUserPasswordForm(forms.Form):
+    new_password1 = forms.CharField(
+        label='New Password',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+    new_password2 = forms.CharField(
+        label='Confirm New Password',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_new_password1(self):
+        password1 = self.cleaned_data.get('new_password1')
+        if password1:
+            validate_password(password1, self.user)
+        return password1
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get('new_password1')
+        password2 = cleaned_data.get('new_password2')
+
+        if password1 and password2 and password1 != password2:
+            self.add_error('new_password2', 'The two password fields did not match.')
+
+        return cleaned_data
+
+
+class CustomerProfileForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'date_of_birth']
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name != 'date_of_birth':
+                field.widget.attrs['class'] = 'form-control'
+
+
+class VendorProfileForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = [
+            'first_name',
+            'last_name',
+            'email',
+            'phone_number',
+            'address',
+            'business_name',
+            'pan_number',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            field.widget.attrs['class'] = 'form-control'

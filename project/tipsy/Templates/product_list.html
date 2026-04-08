@@ -76,7 +76,11 @@
                         
                         <div class="card-footer pt-0">
                             {% if user.is_authenticated and user.is_customer %}
-                                {% if product.stock > 0 %}
+                                {% if not user.is_age_verified %}
+                                <a href="{% url 'customer_profile' %}" class="btn btn-td-outline btn-sm w-100">
+                                    <i class="bi bi-shield-check me-1"></i> Verify Age
+                                </a>
+                                {% elif product.stock > 0 %}
                                 <a href="{% url 'add_to_cart' product.id %}" class="btn btn-td-primary btn-sm w-100">
                                     <i class="bi bi-bag-plus me-1"></i> Add to Cart
                                 </a>

@@ -1,23 +1,30 @@
-from django.contrib.auth.decorators import user_passes_test
+from functools import wraps
+from django.contrib.auth import logout
+from django.shortcuts import redirect
 
 def role_required(role):
     def decorator(view_func):
-        if role == 'VENDOR':
-            return user_passes_test(
-                lambda u: u.is_authenticated and u.role == role and u.vendor_status == 'APPROVED',
-                login_url='login'
-            )(view_func)
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            user = request.user
 
-        if role == 'ADMIN':
-            return user_passes_test(
-                lambda u: u.is_authenticated and (u.role == role or u.is_superuser),
-                login_url='login'
-            )(view_func)
+            if not user.is_authenticated:
+                return redirect('login')
 
-        return user_passes_test(
-            lambda u: u.is_authenticated and u.role == role,
-            login_url='login'
-        )(view_func)
+            if role == 'VENDOR':
+                allowed = user.role == role and user.vendor_status == 'APPROVED'
+            elif role == 'ADMIN':
+                allowed = user.role == role or user.is_superuser
+            else:
+                allowed = user.role == role
+
+            if not allowed:
+                logout(request)
+                return redirect('login')
+
+            return view_func(request, *args, **kwargs)
+
+        return _wrapped_view
     return decorator
 
 vendor_required = role_required('VENDOR')
