@@ -7,7 +7,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+import requests
 from .forms import (
     SignUpForm,
     LoginForm,
@@ -16,7 +17,7 @@ from .forms import (
     CustomerProfileForm,
     VendorProfileForm,
 )
-from .models import CustomUser, Product, Category, Cart, CartItem, Order, OrderItem
+from .models import CustomUser, Payment, Product, Category, Cart, CartItem, Order, OrderItem, FAQ
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.views import LoginView, LogoutView
@@ -26,6 +27,7 @@ from django.utils.decorators import method_decorator
 from django.db.models import Count, F, Sum, DecimalField, ExpressionWrapper, Value
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
+from django.utils.timezone import now
 from .decorators import vendor_required, customer_required, admin_required
 import json
 import math
@@ -215,6 +217,36 @@ class ProductDetailView(DetailView):
         return get_object_or_404(Product, id=self.kwargs.get('id'))
 
 
+class FAQView(ListView):
+    model = FAQ
+    template_name = 'faq.html'
+    context_object_name = 'faqs'
+    
+    def get_queryset(self):
+        return FAQ.objects.filter(is_active=True).order_by('order', '-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Group FAQs by category
+        faqs_by_category = {}
+        categories = [
+            ('general', 'General Questions'),
+            ('order', 'Orders & Delivery'),
+            ('payment', 'Payment'),
+            ('vendor', 'Vendor'),
+            ('account', 'Account'),
+        ]
+        
+        for cat_value, cat_name in categories:
+            faqs_by_category[cat_value] = {
+                'name': cat_name,
+                'faqs': FAQ.objects.filter(is_active=True, category=cat_value).order_by('order', '-created_at')
+            }
+        
+        context['faqs_by_category'] = faqs_by_category
+        return context
+
+
 @method_decorator(admin_required, name='dispatch')
 class AdminDashboardView(LoginRequiredMixin, View):
     template_name = 'Admin/AdminDashboard.html'
@@ -368,7 +400,7 @@ def admin_export_report_pdf(request):
         'TitleStyle',
         parent=styles['Heading1'],
         fontSize=20,
-        textColor=colors.HexColor('#153E5C'),
+        textColor=colors.HexColor("#673518"),
         alignment=TA_CENTER,
         spaceAfter=18,
     )
@@ -389,7 +421,7 @@ def admin_export_report_pdf(request):
     ]
     summary_table = Table(summary_data, colWidths=[3.5 * inch, 3.2 * inch])
     summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#153E5C')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#723907")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D6DEE5')),
@@ -410,7 +442,7 @@ def admin_export_report_pdf(request):
 
     monthly_table = Table(monthly_data, colWidths=[2.3 * inch, 1.8 * inch, 2.6 * inch])
     monthly_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2D6A8A')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#723907")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D6DEE5')),
@@ -889,6 +921,354 @@ def vendor_export_report(request):
     doc.build(elements)
     
     # Get the value of the BytesIO buffer and write it to the response
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response
+
+
+@vendor_required
+def vendor_export_new_orders(request):
+    """Export new orders (Pending) as PDF."""
+    from django.http import HttpResponse
+    from datetime import datetime
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from io import BytesIO
+    
+    # Get all pending order items for this vendor's products
+    vendor_order_items = (
+        OrderItem.objects
+        .filter(product__vendor=request.user, order__status='Pending')
+        .select_related('order', 'order__user', 'product')
+        .order_by('-order__created_at')
+    )
+    
+    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="new_orders_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=12,
+        spaceBefore=20,
+        fontName='Helvetica-Bold'
+    )
+    
+    # Title
+    elements.append(Paragraph("NEW ORDERS REPORT (Pending)", title_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Header info
+    header_data = [
+        ['Generated:', datetime.now().strftime("%B %d, %Y at %I:%M %p")],
+        ['Vendor:', f"{request.user.first_name} {request.user.last_name}"],
+        ['Total Pending Orders:', str(vendor_order_items.values('order_id').distinct().count())]
+    ]
+    
+    header_table = Table(header_data, colWidths=[1.5*inch, 4.5*inch])
+    header_table.setStyle(TableStyle([
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#8B7B73')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#5D3931')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Orders Table
+    if vendor_order_items:
+        elements.append(Paragraph("ORDER DETAILS", heading_style))
+        
+        orders_data = [['Order ID', 'Order Date', 'Customer', 'Product', 'Qty', 'Price (NPR)', 'Subtotal (NPR)']]
+        for item in vendor_order_items:
+            orders_data.append([
+                f"#{item.order.id}",
+                item.order.created_at.strftime("%m/%d/%Y"),
+                f"{item.order.user.first_name} {item.order.user.last_name}"[:20],
+                item.product.name[:25],
+                str(item.quantity),
+                f"{item.price:.2f}",
+                f"{item.subtotal:.2f}"
+            ])
+        
+        orders_table = Table(orders_data, colWidths=[0.8*inch, 1*inch, 1.2*inch, 1.2*inch, 0.5*inch, 0.9*inch, 0.9*inch])
+        orders_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5D3931')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (3, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (-1, -1), 'RIGHT'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        elements.append(orders_table)
+    else:
+        elements.append(Paragraph("No pending orders found.", heading_style))
+    
+    # Build PDF
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response
+
+
+@vendor_required
+def vendor_export_orders_to_deliver(request):
+    """Export orders to deliver (Confirmed) as PDF."""
+    from django.http import HttpResponse
+    from datetime import datetime
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from io import BytesIO
+    
+    # Get all confirmed order items for this vendor's products
+    vendor_order_items = (
+        OrderItem.objects
+        .filter(product__vendor=request.user, order__status='Confirmed')
+        .select_related('order', 'order__user', 'product')
+        .order_by('-order__created_at')
+    )
+    
+    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="orders_to_deliver_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=12,
+        spaceBefore=20,
+        fontName='Helvetica-Bold'
+    )
+    
+    # Title
+    elements.append(Paragraph("ORDERS TO DELIVER REPORT (Confirmed)", title_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Header info
+    header_data = [
+        ['Generated:', datetime.now().strftime("%B %d, %Y at %I:%M %p")],
+        ['Vendor:', f"{request.user.first_name} {request.user.last_name}"],
+        ['Total Orders to Deliver:', str(vendor_order_items.values('order_id').distinct().count())]
+    ]
+    
+    header_table = Table(header_data, colWidths=[1.5*inch, 4.5*inch])
+    header_table.setStyle(TableStyle([
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#8B7B73')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#5D3931')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Orders Table
+    if vendor_order_items:
+        elements.append(Paragraph("ORDER DETAILS", heading_style))
+        
+        orders_data = [['Order ID', 'Order Date', 'Customer', 'Product', 'Qty', 'Price (NPR)', 'Subtotal (NPR)']]
+        for item in vendor_order_items:
+            orders_data.append([
+                f"#{item.order.id}",
+                item.order.created_at.strftime("%m/%d/%Y"),
+                f"{item.order.user.first_name} {item.order.user.last_name}"[:20],
+                item.product.name[:25],
+                str(item.quantity),
+                f"{item.price:.2f}",
+                f"{item.subtotal:.2f}"
+            ])
+        
+        orders_table = Table(orders_data, colWidths=[0.8*inch, 1*inch, 1.2*inch, 1.2*inch, 0.5*inch, 0.9*inch, 0.9*inch])
+        orders_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5D3931')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (3, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (-1, -1), 'RIGHT'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        elements.append(orders_table)
+    else:
+        elements.append(Paragraph("No orders to deliver found.", heading_style))
+    
+    # Build PDF
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response
+
+
+@vendor_required
+def vendor_export_delivered_orders(request):
+    """Export delivered orders as PDF."""
+    from django.http import HttpResponse
+    from datetime import datetime
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from io import BytesIO
+    
+    # Get all delivered order items for this vendor's products
+    vendor_order_items = (
+        OrderItem.objects
+        .filter(product__vendor=request.user, order__status='Delivered')
+        .select_related('order', 'order__user', 'product')
+        .order_by('-order__created_at')
+    )
+    
+    buffer = BytesIO()
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="delivered_orders_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#5D3931'),
+        spaceAfter=12,
+        spaceBefore=20,
+        fontName='Helvetica-Bold'
+    )
+    
+    # Title
+    elements.append(Paragraph("DELIVERED ORDERS REPORT", title_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Header info
+    header_data = [
+        ['Generated:', datetime.now().strftime("%B %d, %Y at %I:%M %p")],
+        ['Vendor:', f"{request.user.first_name} {request.user.last_name}"],
+        ['Total Delivered Orders:', str(vendor_order_items.values('order_id').distinct().count())]
+    ]
+    
+    header_table = Table(header_data, colWidths=[1.5*inch, 4.5*inch])
+    header_table.setStyle(TableStyle([
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#8B7B73')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#5D3931')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Orders Table
+    if vendor_order_items:
+        elements.append(Paragraph("ORDER DETAILS", heading_style))
+        
+        orders_data = [['Order ID', 'Order Date', 'Customer', 'Product', 'Qty', 'Price (NPR)', 'Subtotal (NPR)']]
+        for item in vendor_order_items:
+            orders_data.append([
+                f"#{item.order.id}",
+                item.order.created_at.strftime("%m/%d/%Y"),
+                f"{item.order.user.first_name} {item.order.user.last_name}"[:20],
+                item.product.name[:25],
+                str(item.quantity),
+                f"{item.price:.2f}",
+                f"{item.subtotal:.2f}"
+            ])
+        
+        orders_table = Table(orders_data, colWidths=[0.8*inch, 1*inch, 1.2*inch, 1.2*inch, 0.5*inch, 0.9*inch, 0.9*inch])
+        orders_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5D3931')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (3, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (-1, -1), 'RIGHT'),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E8E8E8')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        elements.append(orders_table)
+    else:
+        elements.append(Paragraph("No delivered orders found.", heading_style))
+    
+    # Build PDF
+    doc.build(elements)
     pdf = buffer.getvalue()
     buffer.close()
     response.write(pdf)
@@ -1499,6 +1879,11 @@ class CheckoutView(LoginRequiredMixin, View):
         subtotal = sum(item.product.price * item.quantity for item in cart_items)
         total_price = float(subtotal) + float(delivery_fee)
         
+        # Get payment method from form
+        payment_method = request.POST.get('payment_method', 'cash')
+        if payment_method not in ['cash', 'khalti']:
+            payment_method = 'cash'
+        
         order = Order.objects.create(
             user=request.user, 
             total_price=total_price,
@@ -1510,9 +1895,27 @@ class CheckoutView(LoginRequiredMixin, View):
             OrderItem.objects.create(order=order, product=item.product, quantity=item.quantity, price=item.product.price)
             item.product.stock -= item.quantity
             item.product.save(update_fields=['stock'])
+        
+        # Create payment record
+        payment = Payment.objects.create(
+            order=order,
+            method=payment_method,
+            amount=total_price,
+            status='pending'
+        )
+        
         cart.delete()
-        messages.success(request, f"Order placed! Delivery fee: NPR {delivery_fee}")
-        return redirect('order_history')
+        
+        # Handle payment method - For Khalti, redirect to payment gateway, for Cash just confirm
+        if payment_method == 'khalti':
+            messages.info(request, "Proceeding to Khalti payment...")
+            return redirect('khalti_payment', payment_id=payment.id)
+        else:
+            # For Cash on Delivery, mark order as Placed immediately
+            order.status = 'Placed'
+            order.save(update_fields=['status'])
+            messages.success(request, f"Order placed! You selected Cash on Delivery. Delivery fee: NPR {delivery_fee}")
+            return redirect('order_history')
 
 @method_decorator(customer_required, name='dispatch')
 class OrderHistoryView(LoginRequiredMixin, ListView):
@@ -1522,3 +1925,125 @@ class OrderHistoryView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).order_by('-created_at')
+
+
+# =====================================
+# KHALTI PAYMENT INTEGRATION VIEWS
+# =====================================
+
+@method_decorator(customer_required, name='dispatch')
+class KhaltiPaymentView(LoginRequiredMixin, View):
+    """Initiate Khalti payment for an order"""
+    
+    def get(self, request, payment_id, *args, **kwargs):
+        payment = get_object_or_404(Payment, id=payment_id, order__user=request.user)
+        order = payment.order
+        
+        # Prepare Khalti API request
+        khalti_secret_key = settings.KHALTI_SECRET_KEY
+        khalti_base_url = settings.KHALTI_BASE_URL
+        
+        # Build the return URL (where Khalti will redirect after payment)
+        return_url = request.build_absolute_uri(reverse('khalti_verify'))
+        
+        payload = {
+            "return_url": return_url,
+            "website_url": request.build_absolute_uri('/'),
+            "amount": int(order.total_price * 100),  # Convert NPR to paisa (cents)
+            "purchase_order_id": str(order.id),
+            "purchase_order_name": f"Order #{order.id}",
+        }
+        
+        headers = {
+            "Authorization": f"Key {khalti_secret_key}",
+            "Content-Type": "application/json",
+        }
+        
+        try:
+            response = requests.post(
+                khalti_base_url + "initiate/",
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Store the pidx for later verification
+            payment.pidx = data.get("pidx")
+            payment.save()
+            
+            # Redirect to Khalti payment page
+            payment_url = data.get("payment_url")
+            if payment_url:
+                return redirect(payment_url)
+            else:
+                messages.error(request, "Failed to initiate payment. Please try again.")
+                return redirect('order_history')
+                
+        except requests.exceptions.RequestException as e:
+            messages.error(request, f"Payment initiation failed: {str(e)}")
+            return redirect('order_history')
+
+
+@method_decorator(customer_required, name='dispatch')
+class KhaltiVerifyView(LoginRequiredMixin, View):
+    """Verify Khalti payment after user returns from Khalti"""
+    
+    def get(self, request, *args, **kwargs):
+        pidx = request.GET.get("pidx")
+        
+        if not pidx:
+            messages.error(request, "Invalid payment request.")
+            return redirect('order_history')
+        
+        payment = get_object_or_404(Payment, pidx=pidx, order__user=request.user)
+        order = payment.order
+        
+        khalti_secret_key = settings.KHALTI_SECRET_KEY
+        khalti_base_url = settings.KHALTI_BASE_URL
+        
+        payload = {
+            "pidx": pidx
+        }
+        
+        headers = {
+            "Authorization": f"Key {khalti_secret_key}",
+            "Content-Type": "application/json",
+        }
+        
+        try:
+            response = requests.post(
+                khalti_base_url + "lookup/",
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Check payment status
+            if data.get("status") == "Completed":
+                payment.status = "paid"
+                payment.transaction_id = data.get("transaction_id")
+                payment.paid_at = now()
+                payment.save()
+                
+                # Mark order as Placed when payment is successful
+                order.status = 'Placed'
+                order.save(update_fields=['status'])
+                
+                messages.success(
+                    request, 
+                    f"Payment successful! Order #{order.id} has been placed. Khalti will process the payment within 24 hours."
+                )
+                return redirect('order_history')
+            else:
+                payment.status = "pending"
+                payment.save()
+                messages.warning(request, "Payment is pending. Please check your order status later.")
+                return redirect('order_history')
+                
+        except requests.exceptions.RequestException as e:
+            messages.error(request, f"Payment verification failed: {str(e)}")
+            return redirect('order_history')

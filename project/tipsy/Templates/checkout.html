@@ -64,18 +64,48 @@
                     <strong>Total</strong>
                     <strong>NPR {{ total_price }}</strong>
                 </div>
-                
-                <div class="mt-4">
-                    <form method="POST">
+            </div>
+
+            <!-- Payment Method Selection -->
+            <div class="td-card mb-3">
+                <div class="td-order-header">
+                    <span class="td-order-id"><i class="bi bi-credit-card me-2"></i>Payment Method</span>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="checkoutForm">
                         {% csrf_token %}
+                        <div class="mb-3">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="payment_method" id="cash_option" value="cash" checked>
+                                <label class="form-check-label" for="cash_option">
+                                    <i class="bi bi-cash-coin me-2" style="color: var(--td-espresso); font-size: 1.2rem;"></i>
+                                    <strong>Cash on Delivery</strong>
+                                    <br>
+                                    <small class="text-muted">Pay when your order arrives</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="payment_method" id="khalti_option" value="khalti">
+                                <label class="form-check-label" for="khalti_option">
+                                    <i class="bi bi-wallet2 me-2" style="color: #5B2C6F; font-size: 1.2rem;"></i>
+                                    <strong>Khalti Wallet</strong>
+                                    <br>
+                                    <small class="text-muted">Pay securely online using Khalti</small>
+                                </label>
+                            </div>
+                        </div>
+                        
                         <button type="submit" class="btn btn-td-accent w-100 mb-2" style="padding: 0.7rem;">
                             <i class="bi bi-check-circle me-1"></i> Place Order
                         </button>
                     </form>
-                    <a href="{% url 'view_cart' %}" class="btn btn-td-outline w-100">
-                        <i class="bi bi-arrow-left me-1"></i> Back to Cart
-                    </a>
                 </div>
+            </div>
+
+            <div>
+                <a href="{% url 'view_cart' %}" class="btn btn-td-outline w-100">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Cart
+                </a>
             </div>
             
             <div class="td-address-card">

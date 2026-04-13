@@ -109,7 +109,7 @@ class Order(models.Model):
     delivery_fee = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
     distance_km = models.FloatField(null=True, blank=True, help_text="Distance from selected shop in km")
     assigned_shop = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders', help_text="The closest vendor matching this order")
-    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Confirmed', 'Confirmed'), ('Delivered', 'Delivered')], default='Pending')
+    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Placed', 'Placed'), ('Confirmed', 'Confirmed'), ('Delivered', 'Delivered')], default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
 
 class OrderItem(models.Model):
@@ -121,3 +121,61 @@ class OrderItem(models.Model):
     @property
     def subtotal(self):
         return self.price * self.quantity
+
+
+class FAQ(models.Model):
+    question = models.CharField(max_length=500)
+    answer = models.TextField()
+    category = models.CharField(
+        max_length=50,
+        choices=[
+            ('general', 'General'),
+            ('order', 'Orders & Delivery'),
+            ('payment', 'Payment'),
+            ('vendor', 'Vendor'),
+            ('account', 'Account'),
+        ],
+        default='general'
+    )
+    is_active = models.BooleanField(default=True)
+    order = models.IntegerField(default=0, help_text="Order of display")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', '-created_at']
+        verbose_name = "FAQ"
+        verbose_name_plural = "FAQs"
+
+    def __str__(self):
+        return self.question
+
+class Payment(models.Model):
+
+    PAYMENT_METHOD_CHOICES = [
+        ("cash", "Cash"),
+        ("khalti", "Khalti"),
+    ]
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+
+    ]
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="payment")
+
+    method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+
+    pidx = models.CharField(max_length=100, blank=True, null=True)
+    
+    transaction_id = models.CharField(max_length=100, blank=True, null=True)
+
+    paid_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Payment for Order {self.order.id}"

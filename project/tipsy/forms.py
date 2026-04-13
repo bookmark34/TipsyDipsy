@@ -3,6 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.password_validation import validate_password
 from .models import CustomUser, Product
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import authenticate
 from datetime import date
 
 
@@ -104,6 +105,29 @@ class LoginForm(AuthenticationForm):
         super().__init__(*args, **kwargs)
         for f in self.fields.values():
             f.widget.attrs["class"] = "form-control"
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username is not None and password:
+            # Authenticate the user
+            self.user_cache = authenticate(
+                self.request,
+                username=username,
+                password=password
+            )
+            
+            if self.user_cache is None:
+                # Authentication failed - either invalid username or password
+                raise forms.ValidationError(
+                    "Invalid username or password. Please check your credentials and try again.",
+                    code='invalid_login',
+                )
+            else:
+                # User authenticated successfully, check if allowed to login
+                self.confirm_login_allowed(self.user_cache)
+        return self.cleaned_data
 
 
 class ProductForm(forms.ModelForm):

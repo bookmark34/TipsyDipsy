@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    HomeView, ProductListView, ProductDetailView,
+    HomeView, ProductListView, ProductDetailView, FAQView,
     SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
     AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView, AdminRemoveVendorView,
     admin_export_report_pdf,
@@ -8,14 +8,16 @@ from .views import (
     VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
     VendorNewOrdersView, VendorOrdersToDeliverView, VendorDeliveredOrdersView, VendorProductsView,
     vendor_export_report, vendor_export_products_pdf,
+    vendor_export_new_orders, vendor_export_orders_to_deliver, vendor_export_delivered_orders,
     ProductCreateView, ProductUpdateView, ProductDeleteView,
     CustomerDashboardView, CustomerProfileUpdateView, VendorProfileUpdateView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
-    CheckoutView, OrderHistoryView
+    CheckoutView, OrderHistoryView, KhaltiPaymentView, KhaltiVerifyView
 )
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
+    path("faq/", FAQView.as_view(), name="faq"),
     path("signup/", SignUpView.as_view(), name="signup"),
     path("login/", UserLoginView.as_view(), name="login"),
     path("logout/", UserLogoutView.as_view(), name="logout"),
@@ -43,8 +45,11 @@ urlpatterns = [
     path("vendor/product/<int:pk>/delete/", ProductDeleteView.as_view(), name="delete_product"),
     path("vendor/orders/", VendorOrdersView.as_view(), name="vendor_orders"),
     path("vendor/orders/new/", VendorNewOrdersView.as_view(), name="vendor_new_orders"),
+    path("vendor/orders/new/export-pdf/", vendor_export_new_orders, name="vendor_export_new_orders"),
     path("vendor/orders/to-deliver/", VendorOrdersToDeliverView.as_view(), name="vendor_orders_to_deliver"),
+    path("vendor/orders/to-deliver/export-pdf/", vendor_export_orders_to_deliver, name="vendor_export_orders_to_deliver"),
     path("vendor/orders/delivered/", VendorDeliveredOrdersView.as_view(), name="vendor_delivered_orders"),
+    path("vendor/orders/delivered/export-pdf/", vendor_export_delivered_orders, name="vendor_export_delivered_orders"),
     path("vendor/orders/<int:order_id>/status/", VendorUpdateOrderStatusView.as_view(), name="vendor_update_order_status"),
     path("vendor/profile/", VendorProfileUpdateView.as_view(), name="vendor_profile"),
     
@@ -59,4 +64,6 @@ urlpatterns = [
     path("checkout/", CheckoutView.as_view(), name="checkout"),
     path("orders/", OrderHistoryView.as_view(), name="order_history"),
     path("profile/", CustomerProfileUpdateView.as_view(), name="customer_profile"),
+    path("payment/khalti/<int:payment_id>/", KhaltiPaymentView.as_view(), name="khalti_payment"),
+    path("payment/khalti/verify/", KhaltiVerifyView.as_view(), name="khalti_verify"),
 ]

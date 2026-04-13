@@ -140,3 +140,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "Shishir.paudel.a23@icp.edu.np"
 EMAIL_HOST_PASSWORD = "jarz zetw lfll vdrc"
 
+KHALTI_SECRET_KEY = "21693356e3a14cdc8594d5e4863b66e1"
+KHALTI_BASE_URL = "https://dev.khalti.com/api/v2/epayment/"
+

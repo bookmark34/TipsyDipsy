@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, Product
+from .models import CustomUser, Product, FAQ
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
@@ -23,3 +23,24 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'vendor', 'price', 'stock', 'created_at')
     list_filter = ('vendor', 'created_at')
     search_fields = ('name', 'description', 'vendor__username')
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ('question', 'category', 'is_active', 'order', 'created_at')
+    list_filter = ('category', 'is_active', 'created_at')
+    search_fields = ('question', 'answer')
+    fieldsets = (
+        ('Question & Answer', {
+            'fields': ('question', 'answer')
+        }),
+        ('Settings', {
+            'fields': ('category', 'is_active', 'order'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at', 'updated_at')
+

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="td-card">
+                    <div class="td-order-header mb-4">
+                        <span class="td-order-id"><i class="bi bi-wallet2 me-2" style="color: #5B2C6F;"></i>Khalti Payment</span>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="text-center mb-5">
+                            <div style="font-size: 3rem; color: #5B2C6F; margin-bottom: 1rem;">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                            <h5>Redirecting to Khalti...</h5>
+                            <p class="text-muted">You will be redirected to Khalti payment gateway shortly.</p>
+                        </div>
+                        
+                        <div style="background-color: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                            <p class="mb-2"><strong>Order ID:</strong> #{{ payment.order.id }}</p>
+                            <p class="mb-2"><strong>Amount:</strong> NPR {{ payment.order.total_price|floatformat:2 }}</p>
+                            <p class="mb-0"><strong>Payment Method:</strong> Khalti Wallet</p>
+                        </div>
+                        
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>If you are not redirected automatically, please click the button below to proceed to Khalti payment gateway.</small>
+                        </div>
+                        
+                        <!-- Khalti Checkout Button -->
+                        <form id="khalti-form" method="POST">
+                            {% csrf_token %}
+                            <a href="{{ payment.order.get_khalti_url }}" class="btn btn-primary w-100" style="background-color: #5B2C6F; border-color: #5B2C6F; padding: 0.75rem;">
+                                <i class="bi bi-wallet2 me-2"></i> Proceed to Khalti Payment
+                            </a>
+                        </form>
+                        
+                        <hr>
+                        
+                        <a href="{% url 'order_history' %}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-arrow-left me-1"></i> Back to Orders
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Safety Information -->
+                <div class="alert alert-success mt-4" role="alert">
+                    <i class="bi bi-shield-check me-2"></i>
+                    <strong>Safe and Secure:</strong> Your payment will be processed securely through Khalti. You will be redirected back to confirm your order.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-redirect script (optional - for better UX) -->
+<script>
+    // Auto-redirect after 2 seconds if data-redirect-url is provided
+    // This is optional and for demo purposes
+</script>
+{% endblock %}
