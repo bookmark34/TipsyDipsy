@@ -2,17 +2,22 @@ from django.urls import path
 from .views import (
     HomeView, ProductListView, ProductDetailView, FAQView,
     SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
+    CustomerDashboardView, CustomerProfileUpdateView,
+    CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
+    CheckoutView, OrderHistoryView, KhaltiPaymentView, KhaltiVerifyView
+)
+from .admin_views import (
     AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView, AdminRemoveVendorView,
     admin_export_report_pdf,
     AdminProductsView, AdminOrdersView, AdminCustomersView, AdminChangeUserPasswordView,
+)
+from .vendor_views import (
     VendorDashboardView, VendorOrdersView, VendorUpdateOrderStatusView,
     VendorNewOrdersView, VendorOrdersToDeliverView, VendorDeliveredOrdersView, VendorProductsView,
     vendor_export_report, vendor_export_products_pdf,
     vendor_export_new_orders, vendor_export_orders_to_deliver, vendor_export_delivered_orders,
     ProductCreateView, ProductUpdateView, ProductDeleteView,
-    CustomerDashboardView, CustomerProfileUpdateView, VendorProfileUpdateView,
-    CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
-    CheckoutView, OrderHistoryView, KhaltiPaymentView, KhaltiVerifyView
+    VendorProfileUpdateView,
 )
 
 urlpatterns = [
