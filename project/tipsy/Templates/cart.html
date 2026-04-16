@@ -82,8 +82,18 @@
                     <strong>NPR <span id="total-price-final">{{ total_price|floatformat:2 }}</span></strong>
                 </div>
                 
-                <div class="mt-4">
-                    <a href="{% url 'checkout' %}" class="btn btn-td-primary w-100 mb-2">
+                {% comment %} Minimum Order Value Check {% endcomment %}
+                <div id="min-order-warning" class="alert alert-warning mt-3" role="alert" {% if total_price >= 2000 %}style="display:none;"{% endif %}>
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Minimum Order Value:</strong> NPR 2000
+                    <br>
+                    <small>You need to add NPR <strong id="remaining-amount-text">{{ remaining_amount|floatformat:2 }}</strong> more items to place an order.</small>
+                </div>
+                <div class="mt-3 mt-4">
+                    <button id="checkout-disabled-btn" class="btn btn-td-primary w-100 mb-2" disabled title="Add more items to reach minimum order value" {% if total_price >= 2000 %}style="display:none;"{% endif %}>
+                        <i class="bi bi-lock me-1"></i> Proceed to Checkout (Min: NPR 2000)
+                    </button>
+                    <a id="checkout-enabled-link" href="{% url 'checkout' %}" class="btn btn-td-primary w-100 mb-2" {% if total_price < 2000 %}style="display:none;"{% endif %}>
                         <i class="bi bi-lock me-1"></i> Proceed to Checkout
                     </a>
                     <a href="{% url 'customer_dashboard' %}" class="btn btn-td-outline w-100">
@@ -107,10 +117,14 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Global flag to prevent form submissions during checkout
+    let isNavigatingToCheckout = false;
+
     // Function to update order summary
     function updateOrderSummary() {
         let totalPrice = 0;
         let totalItems = 0;
+        const MINIMUM_ORDER_VALUE = 2000;
 
         // Loop through all quantity inputs
         const qtyInputs = document.querySelectorAll('.qty-input');
@@ -129,6 +143,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (itemsCountElement) itemsCountElement.textContent = totalItems;
         if (totalPriceAmountElement) totalPriceAmountElement.textContent = totalPrice.toFixed(2);
         if (totalPriceFinalElement) totalPriceFinalElement.textContent = totalPrice.toFixed(2);
+
+        // Update checkout button and minimum order value warning
+        const remainingAmount = Math.max(0, MINIMUM_ORDER_VALUE - totalPrice);
+        const warningDiv = document.getElementById('min-order-warning');
+        const disabledBtn = document.getElementById('checkout-disabled-btn');
+        const enabledLink = document.getElementById('checkout-enabled-link');
+        const remainingText = document.getElementById('remaining-amount-text');
+        
+        if (totalPrice < MINIMUM_ORDER_VALUE) {
+            // Show warning and disabled button
+            if (warningDiv) warningDiv.style.display = 'block';
+            if (disabledBtn) disabledBtn.style.display = 'block';
+            if (enabledLink) enabledLink.style.display = 'none';
+            if (remainingText) remainingText.textContent = remainingAmount.toFixed(2);
+        } else {
+            // Hide warning and show enabled button
+            if (warningDiv) warningDiv.style.display = 'none';
+            if (disabledBtn) disabledBtn.style.display = 'none';
+            if (enabledLink) enabledLink.style.display = 'block';
+        }
     }
 
     // Handle reset quantity button
@@ -193,6 +227,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             updateOrderSummary();
+            
+            // Submitting the form updates the cart in the database
+            const form = this.closest('form');
+            if (form) {
+                const submitBtn = form.querySelector('.submit-qty-btn');
+                if (submitBtn) {
+                    submitBtn.click();
+                }
+            }
         });
 
         // Validate on keyup (live feedback)
@@ -234,6 +277,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const forms = document.querySelectorAll('.qty-form');
     forms.forEach(form => {
         form.addEventListener('submit', function(e) {
+            // Prevent any form submission during checkout navigation
+            if (isNavigatingToCheckout) {
+                e.preventDefault();
+                return false;
+            }
+
             const qtyInput = this.querySelector('.qty-input');
             const qty = parseInt(qtyInput.value);
             const stock = parseInt(qtyInput.getAttribute('data-stock'));
@@ -266,6 +315,39 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         });
     });
+
+    // Prevent form submission when clicking checkout link
+    const checkoutLink = document.getElementById('checkout-enabled-link');
+    if (checkoutLink) {
+        checkoutLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Immediately disable all quantity inputs and forms to prevent any changes
+            const allInputs = document.querySelectorAll('.qty-input');
+            allInputs.forEach(input => {
+                input.disabled = true;
+            });
+            
+            const allForms = document.querySelectorAll('.qty-form');
+            allForms.forEach(form => {
+                form.style.pointerEvents = 'none';
+                form.onsubmit = function(e) {
+                    e.preventDefault();
+                    return false;
+                };
+            });
+            
+            // Set flag to prevent any form submissions
+            isNavigatingToCheckout = true;
+            
+            // Small delay to ensure all handlers are set before navigating
+            setTimeout(() => {
+                const checkoutUrl = this.getAttribute('href');
+                window.location.href = checkoutUrl;
+            }, 50);
+        });
+    }
 });
 </script>
 {% endblock %}

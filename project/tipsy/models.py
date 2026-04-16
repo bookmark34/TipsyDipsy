@@ -179,3 +179,80 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment for Order {self.order.id}"
+
+
+class Notification(models.Model):
+    """Store notifications for customers and vendors (orders + chat)."""
+    
+    NOTIFICATION_TYPES = [
+        ('order_confirmed', 'Order Confirmed'),
+        ('order_shipped', 'Order Shipped'),
+        ('order_delivered', 'Order Delivered'),
+        ('order_pending', 'Order Pending'),
+        ('vendor_new_order', 'New Order Received'),
+        ('vendor_order_cancelled', 'Order Cancelled'),
+        ('chat_message', 'Chat Message'),
+    ]
+    
+    # Recipient of the notification
+    recipient = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notifications')
+    
+    # Related order (optional for non-order notifications)
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, related_name='notifications', null=True, blank=True)
+
+    # Related chat (optional for non-chat notifications)
+    chat = models.ForeignKey('Chat', on_delete=models.SET_NULL, related_name='notifications', null=True, blank=True)
+    
+    # Notification type
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES)
+    
+    # Message content
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    
+    # Read status
+    is_read = models.BooleanField(default=False)
+    
+    # Timestamp
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return f"Notification for {self.recipient.username} - {self.title}"
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save()
+
+class Chat(models.Model):
+    customer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='customer_chats')
+    vendor = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='vendor_chats')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('customer', 'vendor')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Chat between {self.customer.username} and {self.vendor.username}"
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"Message by {self.sender.username} at {self.timestamp}"

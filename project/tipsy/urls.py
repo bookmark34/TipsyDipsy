@@ -4,7 +4,10 @@ from .views import (
     SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
     CustomerDashboardView, CustomerProfileUpdateView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
-    CheckoutView, OrderHistoryView, KhaltiPaymentView, KhaltiVerifyView
+    CheckoutView, OrderHistoryView, KhaltiPaymentView, KhaltiVerifyView,
+    NotificationListView, NotificationDetailView, MarkNotificationAsReadView, 
+    MarkAllNotificationsAsReadView, UnreadNotificationCountView,
+    CustomerChatView, ChatAPIView
 )
 from .admin_views import (
     AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView, AdminRemoveVendorView,
@@ -17,7 +20,8 @@ from .vendor_views import (
     vendor_export_report, vendor_export_products_pdf,
     vendor_export_new_orders, vendor_export_orders_to_deliver, vendor_export_delivered_orders,
     ProductCreateView, ProductUpdateView, ProductDeleteView,
-    VendorProfileUpdateView,
+    VendorProfileUpdateView, VendorNotificationListView, VendorNotificationDetailView, VendorUnreadNotificationCountView,
+    VendorChatListView, VendorChatDetailView
 )
 
 urlpatterns = [
@@ -57,6 +61,11 @@ urlpatterns = [
     path("vendor/orders/delivered/export-pdf/", vendor_export_delivered_orders, name="vendor_export_delivered_orders"),
     path("vendor/orders/<int:order_id>/status/", VendorUpdateOrderStatusView.as_view(), name="vendor_update_order_status"),
     path("vendor/profile/", VendorProfileUpdateView.as_view(), name="vendor_profile"),
+    path("vendor/notifications/", VendorNotificationListView.as_view(), name="vendor_notification_list"),
+    path("vendor/notifications/<int:pk>/", VendorNotificationDetailView.as_view(), name="vendor_notification_detail"),
+    path("vendor/api/notifications/unread-count/", VendorUnreadNotificationCountView.as_view(), name="vendor_unread_notification_count"),
+    path("vendor/chats/", VendorChatListView.as_view(), name="vendor_chats"),
+    path("vendor/chats/<int:chat_id>/", VendorChatDetailView.as_view(), name="vendor_chat_detail"),
     
     # Customer URLs
     path("shop/", CustomerDashboardView.as_view(), name="customer_dashboard"),
@@ -71,4 +80,11 @@ urlpatterns = [
     path("profile/", CustomerProfileUpdateView.as_view(), name="customer_profile"),
     path("payment/khalti/<int:payment_id>/", KhaltiPaymentView.as_view(), name="khalti_payment"),
     path("payment/khalti/verify/", KhaltiVerifyView.as_view(), name="khalti_verify"),
+    path("notifications/", NotificationListView.as_view(), name="notification_list"),
+    path("notifications/<int:pk>/", NotificationDetailView.as_view(), name="notification_detail"),
+    path("api/notifications/<int:notification_id>/mark-as-read/", MarkNotificationAsReadView.as_view(), name="mark_notification_as_read"),
+    path("api/notifications/mark-all-read/", MarkAllNotificationsAsReadView.as_view(), name="mark_all_notifications_as_read"),
+    path("api/notifications/unread-count/", UnreadNotificationCountView.as_view(), name="unread_notification_count"),
+    path("chat/vendor/<int:vendor_id>/", CustomerChatView.as_view(), name="customer_chat"),
+    path("api/chat/<int:chat_id>/", ChatAPIView.as_view(), name="chat_api"),
 ]

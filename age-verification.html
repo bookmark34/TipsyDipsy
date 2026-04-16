@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Age Verification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        /* Overlay styling */
+        .age-verification-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+
+        /* Fade-in animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Modal popup styling */
+        .age-verification-modal {
+            background-color: white;
+            border-radius: 15px;
+            padding: 50px 40px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.5s ease-in-out;
+        }
+
+        /* Slide-up animation for modal */
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Heading styling */
+        .age-verification-modal h1 {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* Sub-text styling */
+        .age-verification-modal p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        /* Button container */
+        .age-verification-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Button styling */
+        .age-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Yes button - primary */
+        .age-btn-yes {
+            background: linear-gradient(135deg, #932f13 0%, #584402 100%);
+            color: white;
+        }
+
+        .age-btn-yes:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(122, 70, 2, 0.4);
+        }
+
+        .age-btn-yes:active {
+            transform: translateY(-1px);
+        }
+
+        /* No button - secondary */
+        .age-btn-no {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .age-btn-no:hover {
+            background-color: #d0d0d0;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .age-btn-no:active {
+            transform: translateY(-1px);
+        }
+
+        /* Main content - hidden initially */
+        .age-verification-content {
+            display: none;
+            padding: 40px 20px;
+        }
+
+        .age-verification-content.show {
+            display: block;
+        }
+
+        /* Responsive design */
+        @media (max-width: 480px) {
+            .age-verification-modal {
+                padding: 35px 25px;
+                border-radius: 12px;
+            }
+
+            .age-verification-modal h1 {
+                font-size: 26px;
+                margin-bottom: 15px;
+            }
+
+            .age-verification-modal p {
+                font-size: 14px;
+                margin-bottom: 30px;
+            }
+
+            .age-btn {
+                padding: 12px 20px;
+                font-size: 14px;
+                min-width: 100px;
+            }
+
+            .age-verification-buttons {
+                gap: 10px;
+            }
+        }
+
+        /* Content styling */
+        .content-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .content-container h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .content-container p {
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Age Verification Overlay -->
+    <div class="age-verification-overlay" id="ageVerificationOverlay">
+        <div class="age-verification-modal">
+            <h1>Are you over 18?</h1>
+            <p>This website contains age-restricted content. You must be at least 18 years old to enter.</p>
+            <div class="age-verification-buttons">
+                <button class="age-btn age-btn-yes" id="ageYesBtn">Yes</button>
+                <button class="age-btn age-btn-no" id="ageNoBtn">No</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Website Content (Hidden until verification) -->
+    <div class="age-verification-content" id="mainContent">
+        <div class="content-container">
+            <h2>Welcome to TipsyDipsy</h2>
+            <p>Thank you for verifying your age. You now have access to our exclusive collection of premium beverages and products.</p>
+            <p>Explore our carefully curated selection of craft drinks, spirits, and specialty beverages from around the world.</p>
+            <p>Browse our products, check out vendor selections, and enjoy special offers available only to verified members.</p>
+        </div>
+    </div>
+
+    <script>
+        // Age Verification Script
+        (function() {
+            // Get DOM elements
+            const ageVerificationOverlay = document.getElementById('ageVerificationOverlay');
+            const mainContent = document.getElementById('mainContent');
+            const yesBtn = document.getElementById('ageYesBtn');
+            const noBtn = document.getElementById('ageNoBtn');
+
+            // localStorage key for storing user's choice
+            const STORAGE_KEY = 'ageVerificationVerified';
+
+            /**
+             * Check if user has already verified their age
+             */
+            function hasVerified() {
+                return localStorage.getItem(STORAGE_KEY) === 'true';
+            }
+
+            /**
+             * Hide the age verification popup and show main content
+             */
+            function hideAgeVerification() {
+                ageVerificationOverlay.style.display = 'none';
+                mainContent.classList.add('show');
+            }
+
+            /**
+             * Handle "Yes" button click
+             */
+            function handleYesClick() {
+                // Save verification to localStorage
+                localStorage.setItem(STORAGE_KEY, 'true');
+                // Hide the popup and show content
+                hideAgeVerification();
+            }
+
+            /**
+             * Handle "No" button click
+             */
+            function handleNoClick() {
+                // Show alert message
+                alert('Sorry, this is an 18+ site.');
+                // Redirect to Google (you can change this URL)
+                window.location.href = 'https://www.google.com';
+            }
+
+            /**
+             * Attach event listeners to buttons
+             */
+            function initializeEventListeners() {
+                yesBtn.addEventListener('click', handleYesClick);
+                noBtn.addEventListener('click', handleNoClick);
+            }
+
+            /**
+             * Initialize the age verification system
+             */
+            function initialize() {
+                // Check if user has already verified
+                if (hasVerified()) {
+                    hideAgeVerification();
+                } else {
+                    initializeEventListeners();
+                }
+            }
+
+            // Run initialization when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialize);
+            } else {
+                initialize();
+            }
+        })();
+    </script>
+</body>
+</html>

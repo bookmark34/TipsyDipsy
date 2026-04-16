@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    <h2 class="td-section-title mb-4" style="color: var(--td-brown);">Customer Conversations</h2>
+    <div class="row">
+        {% for chat in chats %}
+        <div class="col-md-6 mb-3">
+            <div class="card p-3 shadow-sm" style="border-radius: 12px; transition: transform 0.2s;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1 fw-bold">{{ chat.customer.username }}</h6>
+                        <small class="text-muted">Last active: {{ chat.updated_at|date:"M d, Y" }}</small>
+                    </div>
+                    <a href="{% url 'vendor_chat_detail' chat.id %}" class="btn btn-sm" style="background: rgba(52, 152, 219, 0.1); color: #3498DB;">Open Chat</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-muted text-center py-4">No active chats right now.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

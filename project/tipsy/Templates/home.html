@@ -1,11 +1,48 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+  /* Minimal wireframe elements added to the existing home design */
+  .td-hero-search .form-control {
+    border-radius: 999px 0 0 999px;
+    border-color: rgba(255,255,255,0.25);
+    padding: 0.8rem 1rem;
+    background: rgba(255,255,255,0.95);
+  }
+
+  .td-hero-search .btn {
+    border-radius: 0 999px 999px 0;
+    padding: 0.8rem 1.1rem;
+  }
+
+  .td-promo-panel {
+    border-radius: 14px;
+    padding: 2rem;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 700;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+</style>
 
 <!-- ========== HERO ========== -->
 <div class="td-hero">
     <h1 class="td-animate">Welcome to <span>TipsyDipsy</span></h1>
     <p class="td-animate td-animate-delay-1">Handpicked craft beverages from passionate local vendors, delivered right to your doorstep.</p>
+
+    <!-- Wireframe element: search bar -->
+    <form action="{% url 'product_list' %}" method="get" class="td-animate td-animate-delay-1 mt-4">
+        <div class="input-group td-hero-search mx-auto" style="max-width: 560px;">
+            <input type="text" class="form-control" name="search" placeholder="Search..." aria-label="Search">
+            <button class="btn btn-td-accent" type="submit">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+    </form>
+
     <div class="mt-4 td-animate td-animate-delay-2">
         {% if user.is_authenticated %}
             {% if user.is_customer %}
@@ -173,6 +210,23 @@
         <p>Check back soon — new craft beverages are on their way!</p>
     </div>
     {% endif %}
+</section>
+
+<!-- ========== SPECIAL PROMOTIONS (wireframe element) ========== -->
+<section class="td-products-section" style="padding-top: 0;">
+    <h2 class="td-section-title text-center">Special Promotions</h2>
+    <div class="row g-4 mt-2">
+        <div class="col-md-6">
+            <div class="td-promo-panel" style="background: #dbeafe; color: #1e3a8a;">
+                Limited Time Offer! 20% Off Selected Items
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="td-promo-panel" style="background: #fee2e2; color: #7f1d1d;">
+                Flash Sale! Free Delivery on Orders Above NPR 5000
+            </div>
+        </div>
+    </div>
 </section>
 
 <!-- ========== WHY CHOOSE US ========== -->

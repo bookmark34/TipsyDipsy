@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row">
+        <div class="col-md-2">
+            <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Notifications
+            </a>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8 offset-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between mb-4">
+                        <div>
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                {% if notification.notification_type == 'order_confirmed' %}
+                                <div style="font-size: 2.5rem;">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                </div>
+                                {% elif notification.notification_type == 'order_shipped' %}
+                                <div style="font-size: 2.5rem;">
+                                    <i class="bi bi-truck text-info"></i>
+                                </div>
+                                {% elif notification.notification_type == 'order_delivered' %}
+                                <div style="font-size: 2.5rem;">
+                                    <i class="bi bi-box-check text-success"></i>
+                                </div>
+                                {% elif notification.notification_type == 'order_pending' %}
+                                <div style="font-size: 2.5rem;">
+                                    <i class="bi bi-hourglass text-warning"></i>
+                                </div>
+                                {% else %}
+                                <div style="font-size: 2.5rem;">
+                                    <i class="bi bi-info-circle text-primary"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <h2 class="mb-1">{{ notification.title }}</h2>
+                                    <p class="text-muted mb-0">
+                                        <i class="bi bi-calendar3"></i> {{ notification.created_at|date:"F d, Y \a\t H:i" }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="badge bg-{{ notification.is_read|yesno:'secondary,primary' }}">
+                            {{ notification.is_read|yesno:'Read,Unread' }}
+                        </span>
+                    </div>
+
+                    <hr>
+
+                    <div class="my-4">
+                        <h5>Message</h5>
+                        <p class="fs-5 text-muted">{{ notification.message }}</p>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        {% if notification.chat %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Related Chat</h6>
+                            <h5>Chat with {{ notification.chat.vendor.business_name|default:notification.chat.vendor.username }}</h5>
+                            <p class="text-muted mb-0">Started: {{ notification.chat.created_at|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'customer_chat' notification.chat.vendor.id %}" class="btn btn-primary w-100">
+                                <i class="bi bi-chat-dots me-2"></i>Open Chat
+                            </a>
+                        </div>
+                        {% elif notification.order %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Related Order</h6>
+                            <h5>Order #{{ notification.order.id }}</h5>
+                            <p class="text-muted">
+                                Status: <span class="badge bg-{{ notification.order.status|lower|default:'secondary' }}">{{ notification.order.status }}</span>
+                            </p>
+                            <p class="text-muted mb-0">
+                                Total: <strong>NPR {{ notification.order.total_price|floatformat:2 }}</strong>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'order_history' %}" class="btn btn-primary w-100">
+                                <i class="bi bi-eye me-2"></i>View Order Details
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="col-12">
+                            <p class="text-muted mb-0">No related item.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

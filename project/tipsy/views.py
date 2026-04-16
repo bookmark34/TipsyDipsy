@@ -14,7 +14,7 @@ from .forms import (
     LoginForm,
     CustomerProfileForm,
 )
-from .models import CustomUser, Payment, Product, Category, Cart, CartItem, Order, OrderItem, FAQ
+from .models import CustomUser, Payment, Product, Category, Cart, CartItem, Order, OrderItem, FAQ, Notification
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.views import LoginView, LogoutView
@@ -313,15 +313,23 @@ class ProductListView(ListView):
 
 @method_decorator(customer_required, name='dispatch')
 class CartView(LoginRequiredMixin, View):
+    MINIMUM_ORDER_VALUE = 2000
+    
     def get(self, request, *args, **kwargs):
         cart, created = Cart.objects.get_or_create(user=request.user)
         cart_items = CartItem.objects.filter(cart=cart).select_related('product', 'product__category')
         total_price = sum(item.subtotal for item in cart_items)
         total_items = sum(item.quantity for item in cart_items)
+        
+        # Calculate remaining amount to reach minimum order value
+        remaining_amount = max(0, self.MINIMUM_ORDER_VALUE - total_price)
+        
         return render(request, 'cart.html', {
             'cart_items': cart_items,
             'total_price': total_price,
             'total_items': total_items,
+            'remaining_amount': remaining_amount,
+            'minimum_order_value': self.MINIMUM_ORDER_VALUE,
         })
 
 @method_decorator(customer_required, name='dispatch')
@@ -390,6 +398,10 @@ class RemoveFromCartView(LoginRequiredMixin, View):
 
 @method_decorator(customer_required, name='dispatch')
 class CheckoutView(LoginRequiredMixin, View):
+    MINIMUM_ORDER_VALUE = 2000  # Minimum order value in NPR
+    DELIVERY_FEE = 150
+    FREE_DELIVERY_THRESHOLD = 5000
+    
     def get(self, request, *args, **kwargs):
         if not customer_can_purchase(request.user):
             messages.error(request, 'Age verification required before purchasing alcoholic products.')
@@ -400,9 +412,26 @@ class CheckoutView(LoginRequiredMixin, View):
         
         if not cart_items:
             return redirect('view_cart')
+        
+        subtotal = sum(item.product.price * item.quantity for item in cart_items)
+        
+        # Check minimum order value
+        if subtotal < self.MINIMUM_ORDER_VALUE:
+            messages.error(request, f'Minimum order value is NPR {self.MINIMUM_ORDER_VALUE}. Your current cart total is NPR {subtotal:.2f}.')
+            return redirect('view_cart')
+
+        # Flat delivery fee per order (free above threshold)
+        delivery_fee = 0.00 if subtotal >= self.FREE_DELIVERY_THRESHOLD else float(self.DELIVERY_FEE)
+        total_price = float(subtotal) + float(delivery_fee)
             
-        total_price = sum(item.product.price * item.quantity for item in cart_items)
-        return render(request, 'checkout.html', {'cart_items': cart_items, 'total_price': total_price})
+        return render(request, 'checkout.html', {
+            'cart_items': cart_items,
+            'subtotal': subtotal,
+            'delivery_fee': delivery_fee,
+            'free_delivery_threshold': self.FREE_DELIVERY_THRESHOLD,
+            'total_price': total_price,
+            'minimum_order_value': self.MINIMUM_ORDER_VALUE
+        })
 
     def post(self, request, *args, **kwargs):
         if not customer_can_purchase(request.user):
@@ -427,6 +456,12 @@ class CheckoutView(LoginRequiredMixin, View):
                 messages.warning(request, f"{item.product.name} quantity adjusted to available stock ({item.product.stock}).")
                 return redirect('view_cart')
         
+        # Check minimum order value before checkout
+        subtotal = sum(item.product.price * item.quantity for item in cart_items)
+        if subtotal < self.MINIMUM_ORDER_VALUE:
+            messages.error(request, f'Minimum order value is NPR {self.MINIMUM_ORDER_VALUE}. Your current cart total is NPR {subtotal:.2f}.')
+            return redirect('view_cart')
+        
         user_lat = request.POST.get('latitude')
         user_lon = request.POST.get('longitude')
         
@@ -450,15 +485,14 @@ class CheckoutView(LoginRequiredMixin, View):
                     nearest_shop = shop
 
         DELIVERY_RADIUS_KM = 25.0
-        FEE_PER_KM = 1.50
 
         if user_lat and user_lon and min_distance > DELIVERY_RADIUS_KM:
             messages.error(request, "Sorry, there are no shops within your delivery radius.")
             return redirect('view_cart')
 
-        delivery_fee = round(min_distance * FEE_PER_KM, 2) if nearest_shop else 0.00
+        # Flat delivery fee per order (free above threshold)
+        delivery_fee = 0.00 if subtotal >= self.FREE_DELIVERY_THRESHOLD else float(self.DELIVERY_FEE)
 
-        subtotal = sum(item.product.price * item.quantity for item in cart_items)
         total_price = float(subtotal) + float(delivery_fee)
         
         # Get payment method from form
@@ -506,7 +540,35 @@ class OrderHistoryView(LoginRequiredMixin, ListView):
     context_object_name = 'orders'
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).order_by('-created_at')
+        return (
+            Order.objects.filter(user=self.request.user)
+            .select_related('assigned_shop')
+            .prefetch_related('orderitem_set__product__vendor')
+            .order_by('-created_at')
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Attach unique vendors per order so templates can show "Chat with Vendor" buttons.
+        # This stays simple and avoids duplicate chat rooms because Chat is unique per (customer, vendor).
+        for order in context.get('orders', []):
+            vendors = []
+            seen_vendor_ids = set()
+
+            if getattr(order, 'assigned_shop', None):
+                seen_vendor_ids.add(order.assigned_shop_id)
+                vendors.append(order.assigned_shop)
+
+            for item in order.orderitem_set.all():
+                vendor = getattr(item.product, 'vendor', None)
+                if vendor and vendor.id not in seen_vendor_ids:
+                    seen_vendor_ids.add(vendor.id)
+                    vendors.append(vendor)
+
+            order.chat_vendors = vendors
+
+        return context
 
 
 # =====================================
@@ -629,3 +691,168 @@ class KhaltiVerifyView(LoginRequiredMixin, View):
         except requests.exceptions.RequestException as e:
             messages.error(request, f"Payment verification failed: {str(e)}")
             return redirect('order_history')
+
+
+# =====================================
+# NOTIFICATION VIEWS
+# =====================================
+
+from .models import Notification
+
+class NotificationListView(LoginRequiredMixin, ListView):
+    """Display all notifications for the current user"""
+    model = Notification
+    template_name = 'notifications.html'
+    context_object_name = 'notifications'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user_notifications = Notification.objects.filter(recipient=self.request.user)
+        context['unread_count'] = user_notifications.filter(is_read=False).count()
+        context['total_count'] = user_notifications.count()
+        return context
+
+
+class NotificationDetailView(LoginRequiredMixin, DetailView):
+    """Display a single notification and mark as read"""
+    model = Notification
+    template_name = 'notification_detail.html'
+    context_object_name = 'notification'
+    
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user)
+    
+    def get_object(self, queryset=None):
+        notification = super().get_object(queryset)
+        notification.mark_as_read()
+        return notification
+
+
+class MarkNotificationAsReadView(LoginRequiredMixin, View):
+    """Mark a notification as read (AJAX endpoint)"""
+    
+    def post(self, request, notification_id, *args, **kwargs):
+        notification = get_object_or_404(Notification, id=notification_id, recipient=request.user)
+        notification.mark_as_read()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': 'Notification marked as read'})
+        
+        messages.success(request, 'Notification marked as read.')
+        return redirect('notification_list')
+
+
+class MarkAllNotificationsAsReadView(LoginRequiredMixin, View):
+    """Mark all notifications as read"""
+    
+    def post(self, request, *args, **kwargs):
+        from django.utils import timezone
+        unread_notifications = Notification.objects.filter(recipient=request.user, is_read=False)
+        unread_notifications.update(is_read=True, read_at=timezone.now())
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': 'All notifications marked as read'})
+        
+        messages.success(request, 'All notifications marked as read.')
+        return redirect('notification_list')
+
+
+class UnreadNotificationCountView(LoginRequiredMixin, View):
+    """Get unread notification count (AJAX endpoint)"""
+    
+    def get(self, request, *args, **kwargs):
+        unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        return JsonResponse({'unread_count': unread_count})
+
+import json
+from django.utils import timezone
+from .models import Chat, Message, Notification
+from .decorators import customer_required
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(customer_required, name='dispatch')
+class CustomerChatView(View):
+    def get(self, request, vendor_id):
+        vendor = get_object_or_404(CustomUser, id=vendor_id, role='VENDOR')
+        # Get an existing chat or create a new session
+        chat, created = Chat.objects.get_or_create(customer=request.user, vendor=vendor)
+
+        # Mark chat notifications as read when opening the chat
+        Notification.objects.filter(
+            recipient=request.user,
+            chat=chat,
+            notification_type='chat_message',
+            is_read=False,
+        ).update(is_read=True, read_at=timezone.now())
+
+        context = {
+            'chat': chat,
+            'vendor': vendor
+        }
+        return render(request, 'customer_chat.html', context)
+
+@method_decorator(login_required, name='dispatch')
+class ChatAPIView(View):
+    """Shared single JSON API to fetch and send messages via AJAX."""
+    def get(self, request, chat_id):
+        chat = get_object_or_404(Chat, id=chat_id)
+        
+        # Security: Prevent viewing other people's chats
+        if request.user != chat.customer and request.user != chat.vendor:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+            
+        messages = chat.messages.all()
+        # Automatically mark recent messages as read
+        unread_messages = messages.exclude(sender=request.user).filter(is_read=False)
+        unread_messages.update(is_read=True)
+        
+        data = []
+        for msg in messages:
+            data.append({
+                'sender_id': msg.sender.id,
+                'content': msg.content,
+                'timestamp': msg.timestamp.strftime('%I:%M %p, %b %d'),
+            })
+            
+        return JsonResponse({'messages': data})
+
+    def post(self, request, chat_id):
+        chat = get_object_or_404(Chat, id=chat_id)
+
+        if request.user != chat.customer and request.user != chat.vendor:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+        content = (data.get('content') or '').strip()
+
+        if not content:
+            return JsonResponse({'error': 'Empty response'}, status=400)
+
+        Message.objects.create(
+            chat=chat,
+            sender=request.user,
+            content=content,
+        )
+
+        # Create a notification for the other participant
+        recipient = chat.vendor if request.user.id == chat.customer_id else chat.customer
+        Notification.objects.create(
+            recipient=recipient,
+            chat=chat,
+            notification_type='chat_message',
+            title=f"New message from {request.user.username}",
+            message=(content[:200] + '...') if len(content) > 200 else content,
+        )
+
+        # Update chat timestamp (keeps vendor chat list sorted by recent activity)
+        chat.save()
+
+        return JsonResponse({'status': 'success'})

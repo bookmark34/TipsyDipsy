@@ -18,9 +18,164 @@
 
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  
+  <!-- Age Verification Styles -->
+  <style>
+    .age-verification-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      opacity: 0;
+      animation: fadeIn 0.5s ease-in-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .age-verification-modal {
+      background-color: white;
+      border-radius: 15px;
+      padding: 50px 40px;
+      max-width: 450px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.5s ease-in-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .age-verification-modal h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .age-verification-modal p {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+
+    .age-verification-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .age-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .age-btn-yes {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .age-btn-yes:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(107, 56, 2, 0.4);
+    }
+
+    .age-btn-yes:active {
+      transform: translateY(-1px);
+    }
+
+    .age-btn-no {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    .age-btn-no:hover {
+      background-color: #d0d0d0;
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .age-btn-no:active {
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 480px) {
+      .age-verification-modal {
+        padding: 35px 25px;
+        border-radius: 12px;
+      }
+
+      .age-verification-modal h1 {
+        font-size: 26px;
+        margin-bottom: 15px;
+      }
+
+      .age-verification-modal p {
+        font-size: 14px;
+        margin-bottom: 30px;
+      }
+
+      .age-btn {
+        padding: 12px 20px;
+        font-size: 14px;
+        min-width: 100px;
+      }
+
+      .age-verification-buttons {
+        gap: 10px;
+      }
+    }
+  </style>
 </head>
 
 <body>
+<!-- Age Verification Overlay -->
+<div class="age-verification-overlay" id="ageVerificationOverlay">
+  <div class="age-verification-modal">
+    <h1>Are you over 18?</h1>
+    <p>This website contains age-restricted content. You must be at least 18 years old to enter.</p>
+    <div class="age-verification-buttons">
+      <button class="age-btn age-btn-yes" id="ageYesBtn">Yes</button>
+      <button class="age-btn age-btn-no" id="ageNoBtn">No</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main Website Content (shown after verification) -->
+<div class="age-verification-content" id="mainContent">
+
 <div class="td-page-wrap">
 
   <nav class="navbar navbar-expand-lg td-navbar">
@@ -69,6 +224,9 @@
               <a class="nav-link" href="{% url 'add_product' %}"><i class="bi bi-plus-circle me-1"></i>Add Product</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="{% url 'vendor_notification_list' %}"><i class="bi bi-bell me-1"></i>Notifications</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="{% url 'vendor_profile' %}"><i class="bi bi-person-circle me-1"></i>Profile</a>
             </li>
             {% else %}
@@ -80,6 +238,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{% url 'order_history' %}"><i class="bi bi-clock-history me-1"></i>Orders</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'notification_list' %}"><i class="bi bi-bell me-1"></i>Notifications</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{% url 'customer_profile' %}"><i class="bi bi-person-circle me-1"></i>Profile</a>
@@ -142,6 +303,55 @@
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Age Verification Script -->
+  <script>
+    (function() {
+      const ageVerificationOverlay = document.getElementById('ageVerificationOverlay');
+      const mainContent = document.getElementById('mainContent');
+      const yesBtn = document.getElementById('ageYesBtn');
+      const noBtn = document.getElementById('ageNoBtn');
+      const STORAGE_KEY = 'ageVerificationVerified';
+
+      function hasVerified() {
+        return localStorage.getItem(STORAGE_KEY) === 'true';
+      }
+
+      function hideAgeVerification() {
+        ageVerificationOverlay.style.display = 'none';
+        mainContent.classList.add('show');
+      }
+
+      function handleYesClick() {
+        localStorage.setItem(STORAGE_KEY, 'true');
+        hideAgeVerification();
+      }
+
+      function handleNoClick() {
+        alert('Sorry, this is an 18+ site.');
+        window.location.href = 'https://www.google.com';
+      }
+
+      function initializeEventListeners() {
+        yesBtn.addEventListener('click', handleYesClick);
+        noBtn.addEventListener('click', handleNoClick);
+      }
+
+      function initialize() {
+        if (hasVerified()) {
+          hideAgeVerification();
+        } else {
+          initializeEventListeners();
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+      } else {
+        initialize();
+      }
+    })();
+  </script>
 
 </body>
 

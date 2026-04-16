@@ -49,8 +49,21 @@
             </div>
         </div>
         <div class="td-order-footer">
-            <span style="color: var(--td-text-muted); font-size: 0.85rem;">{{ order.orderitem_set.count }} item{{ order.orderitem_set.count|pluralize }}</span>
-            <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">Total: NPR {{ order.total_price }}</span>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                <span style="color: var(--td-text-muted); font-size: 0.85rem;">{{ order.orderitem_set.count }} item{{ order.orderitem_set.count|pluralize }}</span>
+                <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">Total: NPR {{ order.total_price }}</span>
+            </div>
+
+            {% if user.is_authenticated and user.role == 'CUSTOMER' and order.chat_vendors %}
+            <div class="mt-2 d-flex flex-wrap gap-2">
+                {% for vendor in order.chat_vendors %}
+                <a href="{% url 'customer_chat' vendor.id %}" class="btn btn-sm btn-td-outline" style="padding: 0.45rem 1rem;">
+                    <i class="bi bi-chat-dots me-1"></i>
+                    Chat with Vendor
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
     {% endfor %}

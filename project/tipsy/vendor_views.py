@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from .forms import ProductForm, VendorProfileForm
 from .models import Product, OrderItem, Order, CustomUser
 from django.views import View
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
@@ -701,8 +701,10 @@ class VendorUpdateOrderStatusView(LoginRequiredMixin, View):
 
         new_status = request.POST.get('status')
         if new_status in ['Pending', 'Confirmed', 'Delivered']:
+            old_status = order.status
             order.status = new_status
             order.save()
+            # Note: Notifications are created automatically via signals in signals.py
             messages.success(request, f"Order #{order.id} status updated to {new_status}.")
         else:
             messages.error(request, "Invalid status.")
@@ -1037,3 +1039,86 @@ class VendorProfileUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, 'Profile updated successfully.')
         return super().form_valid(form)
+
+
+# =====================================
+# VENDOR NOTIFICATION VIEWS
+# =====================================
+
+from .models import Notification
+from django.http import JsonResponse
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorNotificationListView(LoginRequiredMixin, ListView):
+    """Display all notifications for the vendor"""
+    model = Notification
+    template_name = 'Vendor/vendor_notifications.html'
+    context_object_name = 'notifications'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user_notifications = Notification.objects.filter(recipient=self.request.user)
+        context['unread_count'] = user_notifications.filter(is_read=False).count()
+        context['total_count'] = user_notifications.count()
+        return context
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorNotificationDetailView(LoginRequiredMixin, DetailView):
+    """Display a single notification and mark as read"""
+    model = Notification
+    template_name = 'Vendor/vendor_notification_detail.html'
+    context_object_name = 'notification'
+    
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user)
+    
+    def get_object(self, queryset=None):
+        notification = super().get_object(queryset)
+        notification.mark_as_read()
+        return notification
+
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorUnreadNotificationCountView(LoginRequiredMixin, View):
+    """Get unread notification count (AJAX endpoint)"""
+    
+    def get(self, request, *args, **kwargs):
+        unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        return JsonResponse({'unread_count': unread_count})
+
+
+from django.utils import timezone
+from .models import Chat, Notification
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorChatListView(LoginRequiredMixin, ListView):
+    model = Chat
+    template_name = 'Vendor/vendor_chat_list.html'
+    context_object_name = 'chats'
+    
+    def get_queryset(self):
+        return Chat.objects.filter(vendor=self.request.user)
+
+@method_decorator(vendor_required, name='dispatch')
+class VendorChatDetailView(LoginRequiredMixin, View):
+    def get(self, request, chat_id):
+        chat = get_object_or_404(Chat, id=chat_id, vendor=request.user)
+
+        # Mark chat notifications as read when vendor opens the chat
+        Notification.objects.filter(
+            recipient=request.user,
+            chat=chat,
+            notification_type='chat_message',
+            is_read=False,
+        ).update(is_read=True, read_at=timezone.now())
+
+        context = {
+            'chat': chat,
+            'customer': chat.customer
+        }
+        return render(request, 'Vendor/vendor_chat.html', context)

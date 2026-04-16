@@ -52,17 +52,27 @@
                 
                 <div class="td-summary-row">
                     <span>Subtotal</span>
-                    <span>NPR {{ total_price }}</span>
+                    <span>NPR {{ subtotal|floatformat:2 }}</span>
                 </div>
                 
                 <div class="td-summary-row">
-                    <span>Shipping</span>
+                    <span>Delivery</span>
+                    {% if delivery_fee == 0 %}
                     <span style="color: #2e7d32; font-weight: 500;">Free</span>
+                    {% else %}
+                    <span>NPR {{ delivery_fee|floatformat:2 }}</span>
+                    {% endif %}
                 </div>
+                <small class="text-muted" style="display: block; margin-top: -0.25rem;">Free delivery on orders above NPR {{ free_delivery_threshold }}</small>
                 
                 <div class="td-summary-total">
                     <strong>Total</strong>
-                    <strong>NPR {{ total_price }}</strong>
+                    <strong>NPR {{ total_price|floatformat:2 }}</strong>
+                </div>
+                
+                <div class="alert alert-info mt-3 mb-0" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Minimum Order Value:</strong> NPR {{ minimum_order_value }}
                 </div>
             </div>
 

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <!-- Chat Container UI -->
+    <div class="chat-container card shadow-sm mx-auto" style="max-width: 800px; border-radius: 12px; overflow: hidden; height: 600px; display: flex; flex-direction: column;">
+        <!-- Chat Banner -->
+        <div class="p-3 border-bottom d-flex align-items-center" style="background: #FAFAF8;">
+            <!-- For Customer side: Go Back to Products -->
+            <a href="{% url 'vendor_chats' %}" class="btn btn-sm btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+            <div>
+               <!-- Dynamic Header -->
+               <h5 class="mb-0" style="color: var(--td-brown);">{{ customer.username }}</h5>
+               <small class="text-muted">Chat with Customer</small>
+            </div>
+        </div>
+
+        <!-- Rendered Message Box -->
+        <div class="p-3 flex-grow-1" id="chat-messages" style="overflow-y: auto; background: #fff;"></div>
+
+        <!-- Input field -->
+        <div class="p-3 border-top" style="background: #FAFAF8;">
+            <div class="input-group">
+                <input type="text" id="message-input" class="form-control" placeholder="Type a message..." style="border-radius: 20px 0 0 20px;">
+                <button class="btn btn-td-accent" id="send-btn" style="border-radius: 0 20px 20px 0;">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .msg-bubble { max-width: 75%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; }
+    .msg-sent { background: var(--td-gold); color: white; margin-left: auto; border-bottom-right-radius: 4px; }
+    .msg-received { background: #f1f0f0; color: #333; margin-right: auto; border-bottom-left-radius: 4px; }
+    .msg-time { font-size: 0.7rem; opacity: 0.8; display: block; margin-top: 5px; text-align: right; }
+</style>
+
+<script>
+    const chatId = '{{ chat.id }}';
+    const currentUserId = {{ request.user.id }};
+    const msgBox = document.getElementById('chat-messages');
+
+    <!-- Fetch & Render Logic -->
+    function loadChat() {
+        fetch(`/api/chat/${chatId}/`)
+            .then(res => res.json())
+            .then(data => {
+                msgBox.innerHTML = '';
+                if(data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        const isSent = msg.sender_id === currentUserId;
+                        msgBox.innerHTML += `
+                            <div class="msg-bubble ${isSent ? 'msg-sent' : 'msg-received'}">
+                                ${msg.content} <span class="msg-time">${msg.timestamp}</span>
+                            </div>`;
+                    });
+                    msgBox.scrollTop = msgBox.scrollHeight;
+                } else {
+                    msgBox.innerHTML = '<div class="text-center text-muted mt-4">Start chatting!</div>';
+                }
+            });
+    }
+
+    <!-- Push message to database via AJAX POST -->
+    function sendMsg() {
+        const text = document.getElementById('message-input').value.trim();
+        if (!text) return;
+        fetch(`/api/chat/${chatId}/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+            body: JSON.stringify({ content: text })
+        }).then(() => {
+            document.getElementById('message-input').value = '';
+            loadChat();
+        });
+    }
+
+    document.getElementById('send-btn').addEventListener('click', sendMsg);
+    document.getElementById('message-input').addEventListener('keypress', e => { if (e.key === 'Enter') sendMsg(); });
+    
+    // Load immediately and refresh continuously
+    loadChat();
+    setInterval(loadChat, 3000); 
+</script>
+{% endblock %}
