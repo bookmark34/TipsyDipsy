@@ -13,14 +13,16 @@ from .forms import (
     SignUpForm,
     LoginForm,
     CustomerProfileForm,
+    FeedbackForm,
 )
-from .models import CustomUser, Payment, Product, Category, Cart, CartItem, Order, OrderItem, FAQ, Notification
+from .models import CustomUser, Payment, Product, Category, Cart, CartItem, Order, OrderItem, Notification, Feedback
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
+from django.db import IntegrityError
 from django.db.models import Count, F, Sum, DecimalField, ExpressionWrapper, Value
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
@@ -203,6 +205,11 @@ class HomeView(ListView):
         context['total_products'] = Product.objects.count()
         context['total_vendors'] = CustomUser.objects.filter(role='VENDOR', vendor_status='APPROVED').count()
         context['total_categories'] = Category.objects.count()
+        context['latest_feedbacks'] = (
+            Feedback.objects.select_related('user', 'product')
+            .only('id', 'rating', 'comment', 'created_at', 'user__username', 'product__id', 'product__name')
+            .order_by('-created_at')[:6]
+        )
         return context
 
 class ProductDetailView(DetailView):
@@ -213,43 +220,15 @@ class ProductDetailView(DetailView):
     def get_object(self, queryset=None):
         return get_object_or_404(Product, id=self.kwargs.get('id'))
 
-
-class FAQView(ListView):
-    model = FAQ
-    template_name = 'faq.html'
-    context_object_name = 'faqs'
-    
-    def get_queryset(self):
-        return FAQ.objects.filter(is_active=True).order_by('order', '-created_at')
-    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Group FAQs by category
-        faqs_by_category = {}
-        categories = [
-            ('general', 'General Questions'),
-            ('order', 'Orders & Delivery'),
-            ('payment', 'Payment'),
-            ('vendor', 'Vendor'),
-            ('account', 'Account'),
-        ]
-        
-        for cat_value, cat_name in categories:
-            faqs_by_category[cat_value] = {
-                'name': cat_name,
-                'faqs': FAQ.objects.filter(is_active=True, category=cat_value).order_by('order', '-created_at')
-            }
-        
-        context['faqs_by_category'] = faqs_by_category
+        context['feedbacks'] = (
+            Feedback.objects.filter(product=self.object)
+            .select_related('user')
+            .only('id', 'rating', 'comment', 'created_at', 'user__username')
+            .order_by('-created_at')
+        )
         return context
-
-
-
-
-
-
-
-
 
 
 
@@ -542,7 +521,7 @@ class OrderHistoryView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return (
             Order.objects.filter(user=self.request.user)
-            .select_related('assigned_shop')
+            .select_related('assigned_shop', 'payment')
             .prefetch_related('orderitem_set__product__vendor')
             .order_by('-created_at')
         )
@@ -550,9 +529,17 @@ class OrderHistoryView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        orders = list(context.get('orders', []))
+
+        # Preload existing feedback for this user to avoid per-row queries
+        feedback_keys = set(
+            Feedback.objects.filter(user=self.request.user, order__in=orders)
+            .values_list('order_id', 'product_id')
+        )
+
         # Attach unique vendors per order so templates can show "Chat with Vendor" buttons.
         # This stays simple and avoids duplicate chat rooms because Chat is unique per (customer, vendor).
-        for order in context.get('orders', []):
+        for order in orders:
             vendors = []
             seen_vendor_ids = set()
 
@@ -566,9 +553,65 @@ class OrderHistoryView(LoginRequiredMixin, ListView):
                     seen_vendor_ids.add(vendor.id)
                     vendors.append(vendor)
 
+                item.feedback_submitted = (order.id, item.product_id) in feedback_keys
+
             order.chat_vendors = vendors
 
         return context
+
+
+@customer_required
+def submit_feedback(request, order_id, product_id):
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+
+    if order.status != 'Delivered':
+        messages.error(request, 'You can only leave a review after the order is delivered.')
+        return redirect('order_history')
+
+    order_item = (
+        OrderItem.objects.filter(order=order, product_id=product_id)
+        .select_related('product')
+        .first()
+    )
+    if not order_item:
+        messages.error(request, 'Invalid product for this order.')
+        return redirect('order_history')
+
+    product = order_item.product
+
+    if Feedback.objects.filter(user=request.user, order=order, product=product).exists():
+        messages.info(request, 'Review already submitted for this product in this order.')
+        return redirect('product_detail', id=product.id)
+
+    if request.method == 'POST':
+        form = FeedbackForm(request.POST)
+        if form.is_valid():
+            feedback = form.save(commit=False)
+            feedback.user = request.user
+            feedback.order = order
+            feedback.product = product
+            try:
+                feedback.save()
+            except IntegrityError:
+                messages.info(request, 'Review already submitted for this product in this order.')
+                return redirect('product_detail', id=product.id)
+
+            messages.success(request, 'Thank you! Your review has been submitted.')
+            return redirect('product_detail', id=product.id)
+        else:
+            messages.error(request, 'Please fix the errors below.')
+    else:
+        form = FeedbackForm()
+
+    return render(
+        request,
+        'feedback_form.html',
+        {
+            'form': form,
+            'order': order,
+            'product': product,
+        },
+    )
 
 
 # =====================================

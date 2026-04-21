@@ -138,6 +138,37 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(39, 174, 96, 0.15); display: flex; align-items: center; justify-content: center; margin-right: 0.75rem;">
+                                    <i class="bi bi-credit-card" style="color: #27AE60; font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Payment Status</small>
+                                    <strong style="color: var(--td-brown); font-size: 0.95rem;">
+                                        {% if entry.order.payment %}
+                                            {% if entry.order.payment.method == 'cash' %}
+                                                {% if entry.order.status == 'Delivered' %}
+                                                    Paid
+                                                {% else %}
+                                                    Cash on Delivery
+                                                {% endif %}
+                                            {% elif entry.order.payment.method == 'khalti' %}
+                                                {% if entry.order.payment.status == 'paid' or entry.order.status == 'Delivered' %}
+                                                    Paid
+                                                {% else %}
+                                                    Pending
+                                                {% endif %}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
                         {% if entry.order.distance_km %}
                         <div class="col-md-3 col-6">
                             <div class="d-flex align-items-center">

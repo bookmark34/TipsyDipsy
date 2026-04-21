@@ -11,6 +11,9 @@
             </div>
             <div class="col-auto">
                 <div class="d-flex gap-2">
+                    <a href="#report" class="btn" style="background: linear-gradient(135deg, #8B7B73, #8B7B73); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(139, 123, 115, 0.2);">
+                        View Report
+                    </a>
                     <a href="{% url 'vendor_export_report' %}" class="btn" style="background: linear-gradient(135deg, #27AE60, #229954); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);">
                         Export Report
                     </a>
@@ -81,6 +84,86 @@
                             <i class="bi bi-chat-fill me-1"></i> Customer Chats
                         </a>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Section -->
+        <div id="report" class="row g-3 mb-4" style="scroll-margin-top: 90px;">
+            <div class="col-12">
+                <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <h3 style="color: var(--td-brown); font-weight: 800; font-size: 1.2rem; margin: 0;">
+                            Sales Report
+                        </h3>
+                        <a href="{% url 'vendor_export_report' %}" class="btn btn-sm" style="background: rgba(39, 174, 96, 0.1); color: #27AE60; border: 2px solid rgba(39, 174, 96, 0.2); font-weight: 700; border-radius: 8px; padding: 0.55rem 1rem;">
+                            Export PDF
+                        </a>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th class="text-end">Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Total Orders Completed</td>
+                                    <td class="text-end">{{ sales_summary.delivered_orders_count }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Sales (All Time)</td>
+                                    <td class="text-end">NPR {{ sales_summary.total_sales|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Sales (Last 30 Days)</td>
+                                    <td class="text-end">NPR {{ sales_summary.sales_last_30_days|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Units Sold</td>
+                                    <td class="text-end">{{ sales_summary.units_sold }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);">
+                    <h3 style="color: var(--td-brown); font-weight: 800; font-size: 1.1rem; margin: 0 0 1rem;">
+                        Monthly Breakdown (Last 6 Months)
+                    </h3>
+
+                    {% if monthly_sales %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-end">Orders</th>
+                                        <th class="text-end">Units Sold</th>
+                                        <th class="text-end">Total Sales (NPR)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for m in monthly_sales %}
+                                    <tr>
+                                        <td>{{ m.month|date:"M Y" }}</td>
+                                        <td class="text-end">{{ m.orders }}</td>
+                                        <td class="text-end">{{ m.total_units }}</td>
+                                        <td class="text-end">NPR {{ m.total_sales|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No delivered sales yet, so the report is empty.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

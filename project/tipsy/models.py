@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import UserManager
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from datetime import date
 
 
@@ -123,32 +125,47 @@ class OrderItem(models.Model):
         return self.price * self.quantity
 
 
-class FAQ(models.Model):
-    question = models.CharField(max_length=500)
-    answer = models.TextField()
-    category = models.CharField(
-        max_length=50,
-        choices=[
-            ('general', 'General'),
-            ('order', 'Orders & Delivery'),
-            ('payment', 'Payment'),
-            ('vendor', 'Vendor'),
-            ('account', 'Account'),
-        ],
-        default='general'
+class Feedback(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='feedbacks')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='feedbacks')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='feedbacks')
+
+    rating = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Optional rating from 1 to 5",
     )
-    is_active = models.BooleanField(default=True)
-    order = models.IntegerField(default=0, help_text="Order of display")
+    comment = models.TextField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['order', '-created_at']
-        verbose_name = "FAQ"
-        verbose_name_plural = "FAQs"
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'order', 'product'], name='unique_feedback_per_user_order_product')
+        ]
+        ordering = ['-created_at']
 
     def __str__(self):
-        return self.question
+        return f"Feedback by {self.user.username} for Order #{self.order_id} - {self.product.name}"
+
+    def clean(self):
+        super().clean()
+
+        normalized_comment = (self.comment or '').strip()
+
+        if self.rating is None and not normalized_comment:
+            raise ValidationError("Please provide at least a rating or a comment.")
+
+        if self.rating is not None and not (1 <= int(self.rating) <= 5):
+            raise ValidationError({'rating': "Rating must be between 1 and 5."})
+
+        # Store stripped comment so blank-only comments don't pass validation
+        self.comment = normalized_comment or None
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 class Payment(models.Model):
 

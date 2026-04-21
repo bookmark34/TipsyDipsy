@@ -75,6 +75,38 @@
                             <p class="text-muted">
                                 Customer: {{ notification.order.user.get_full_name|default:notification.order.user.username }}
                             </p>
+                            <p class="text-muted">
+                                Payment Method:
+                                {% if notification.order.payment %}
+                                    {% if notification.order.payment.method == 'cash' %}
+                                        Cash on Delivery
+                                    {% else %}
+                                        Online Payment ({{ notification.order.payment.get_method_display }})
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </p>
+                            <p class="text-muted">
+                                Payment Status:
+                                {% if notification.order.payment %}
+                                    {% if notification.order.payment.method == 'cash' %}
+                                        {% if notification.order.status == 'Delivered' %}
+                                            Paid
+                                        {% else %}
+                                            Cash on Delivery
+                                        {% endif %}
+                                    {% else %}
+                                        {% if notification.order.payment.status == 'paid' or notification.order.status == 'Delivered' %}
+                                            Paid
+                                        {% else %}
+                                            Pending
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </p>
                             <p class="text-muted mb-0">
                                 Total: <strong>NPR {{ notification.order.total_price|floatformat:2 }}</strong>
                             </p>

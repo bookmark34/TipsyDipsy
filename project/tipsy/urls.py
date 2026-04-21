@@ -1,13 +1,14 @@
 from django.urls import path
 from .views import (
-    HomeView, ProductListView, ProductDetailView, FAQView,
+    HomeView, ProductListView, ProductDetailView,
     SignUpView, UserLoginView, UserLogoutView, EmailVerificationView,
     CustomerDashboardView, CustomerProfileUpdateView,
     CartView, AddToCartView, UpdateCartView, RemoveFromCartView,
     CheckoutView, OrderHistoryView, KhaltiPaymentView, KhaltiVerifyView,
     NotificationListView, NotificationDetailView, MarkNotificationAsReadView, 
     MarkAllNotificationsAsReadView, UnreadNotificationCountView,
-    CustomerChatView, ChatAPIView
+    CustomerChatView, ChatAPIView,
+    submit_feedback,
 )
 from .admin_views import (
     AdminDashboardView, AdminVendorsView, AdminApproveVendorView, AdminRejectVendorView, AdminRemoveVendorView,
@@ -26,7 +27,6 @@ from .vendor_views import (
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
-    path("faq/", FAQView.as_view(), name="faq"),
     path("signup/", SignUpView.as_view(), name="signup"),
     path("login/", UserLoginView.as_view(), name="login"),
     path("logout/", UserLogoutView.as_view(), name="logout"),
@@ -77,6 +77,7 @@ urlpatterns = [
     path("cart/remove/<int:item_id>/", RemoveFromCartView.as_view(), name="remove_from_cart"),
     path("checkout/", CheckoutView.as_view(), name="checkout"),
     path("orders/", OrderHistoryView.as_view(), name="order_history"),
+    path("feedback/<int:order_id>/<int:product_id>/", submit_feedback, name="submit_feedback"),
     path("profile/", CustomerProfileUpdateView.as_view(), name="customer_profile"),
     path("payment/khalti/<int:payment_id>/", KhaltiPaymentView.as_view(), name="khalti_payment"),
     path("payment/khalti/verify/", KhaltiVerifyView.as_view(), name="khalti_verify"),

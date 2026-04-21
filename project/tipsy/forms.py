@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.password_validation import validate_password
-from .models import CustomUser, Product
+from .models import CustomUser, Product, Feedback
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import authenticate
 from datetime import date
@@ -204,3 +204,33 @@ class VendorProfileForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
+
+
+class FeedbackForm(forms.ModelForm):
+    class Meta:
+        model = Feedback
+        fields = ['rating', 'comment']
+        widgets = {
+            'rating': forms.HiddenInput(),
+            'comment': forms.Textarea(
+                attrs={
+                    'class': 'form-control',
+                    'rows': 4,
+                    'placeholder': 'Write an optional comment...',
+                }
+            ),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        rating = cleaned_data.get('rating')
+        comment = (cleaned_data.get('comment') or '').strip()
+
+        if rating is None and not comment:
+            raise forms.ValidationError('Please provide at least a rating or a comment.')
+
+        if rating is not None and not (1 <= int(rating) <= 5):
+            self.add_error('rating', 'Rating must be between 1 and 5.')
+
+        cleaned_data['comment'] = comment or None
+        return cleaned_data

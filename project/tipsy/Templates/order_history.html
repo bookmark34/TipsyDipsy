@@ -13,7 +13,7 @@
                 <span class="td-order-date"><i class="bi bi-calendar3 me-1"></i>{{ order.created_at|date:"M d, Y" }}</span>
             </div>
             <div>
-                {% if order.status == 'Pending' %}
+                {% if order.status == 'Pending' or order.status == 'Placed' %}
                 <span class="td-badge td-badge-pending">{{ order.status }}</span>
                 {% elif order.status == 'Confirmed' %}
                 <span class="td-badge td-badge-confirmed">{{ order.status }}</span>
@@ -33,6 +33,7 @@
                             <th class="text-center">Quantity</th>
                             <th class="text-center">Price</th>
                             <th class="text-center">Subtotal</th>
+                            <th class="text-center">Review</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -42,6 +43,19 @@
                             <td class="text-center">{{ item.quantity }}</td>
                             <td class="text-center">NPR {{ item.price }}</td>
                             <td class="text-center" style="font-weight: 600;">NPR {{ item.subtotal }}</td>
+                            <td class="text-center">
+                                {% if order.status == 'Delivered' %}
+                                    {% if item.feedback_submitted %}
+                                        <span class="td-badge td-badge-confirmed">Review Submitted</span>
+                                    {% else %}
+                                        <a href="{% url 'submit_feedback' order.id item.product.id %}" class="btn btn-sm btn-td-primary">
+                                            Leave Review
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color: var(--td-text-muted);">—</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -52,6 +66,41 @@
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
                 <span style="color: var(--td-text-muted); font-size: 0.85rem;">{{ order.orderitem_set.count }} item{{ order.orderitem_set.count|pluralize }}</span>
                 <span style="font-family: 'Playfair Display', serif; font-weight: 700; font-size: 1.1rem; color: var(--td-brown);">Total: NPR {{ order.total_price }}</span>
+            </div>
+
+            <div class="mt-2" style="color: var(--td-text-muted); font-size: 0.9rem;">
+                <div>
+                    <strong style="color: var(--td-brown);">Payment Method:</strong>
+                    {% if order.payment %}
+                        {% if order.payment.method == 'cash' %}
+                            Cash on Delivery
+                        {% else %}
+                            Online Payment ({{ order.payment.get_method_display }})
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+                <div>
+                    <strong style="color: var(--td-brown);">Payment Status:</strong>
+                    {% if order.payment %}
+                        {% if order.payment.method == 'cash' %}
+                            {% if order.status == 'Delivered' %}
+                                Paid
+                            {% else %}
+                                Cash on Delivery
+                            {% endif %}
+                        {% else %}
+                            {% if order.payment.status == 'paid' or order.status == 'Delivered' %}
+                                Paid
+                            {% else %}
+                                Pending
+                            {% endif %}
+                        {% endif %}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
             </div>
 
             {% if user.is_authenticated and user.role == 'CUSTOMER' and order.chat_vendors %}

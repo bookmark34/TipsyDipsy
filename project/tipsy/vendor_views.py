@@ -313,10 +313,10 @@ def vendor_export_new_orders(request):
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER
     
-    # Get all pending order items for this vendor's products
+    # New orders are marked as 'Placed' (COD or paid online)
     vendor_order_items = (
         OrderItem.objects
-        .filter(product__vendor=request.user, order__status='Pending')
+        .filter(product__vendor=request.user, order__status='Placed')
         .select_related('order', 'order__user', 'product')
         .order_by('-order__created_at')
     )
@@ -651,7 +651,7 @@ class VendorOrdersView(LoginRequiredMixin, View):
         vendor_order_items = (
             OrderItem.objects
             .filter(product__vendor=request.user)
-            .select_related('order', 'order__user', 'product')
+            .select_related('order', 'order__user', 'order__payment', 'product')
             .order_by('-order__created_at')
         )
 
@@ -672,7 +672,8 @@ class VendorOrdersView(LoginRequiredMixin, View):
         vendor_orders = list(orders_dict.values())
 
         # Categorize orders by status
-        pending_orders = [o for o in vendor_orders if o['order'].status == 'Pending']
+        # Orders become 'Placed' after COD checkout or successful online payment.
+        pending_orders = [o for o in vendor_orders if o['order'].status == 'Placed']
         confirmed_orders = [o for o in vendor_orders if o['order'].status == 'Confirmed']
         delivered_orders = [o for o in vendor_orders if o['order'].status == 'Delivered']
 
@@ -717,11 +718,11 @@ class VendorNewOrdersView(LoginRequiredMixin, View):
     """Show new orders (Pending status) for this vendor."""
 
     def get(self, request, *args, **kwargs):
-        # Get all pending order items for this vendor's products
+        # New orders are marked as 'Placed' (COD or paid online).
         vendor_order_items = (
             OrderItem.objects
-            .filter(product__vendor=request.user, order__status='Pending')
-            .select_related('order', 'order__user', 'product')
+            .filter(product__vendor=request.user, order__status='Placed')
+            .select_related('order', 'order__user', 'order__payment', 'product')
             .order_by('-order__created_at')
         )
 
@@ -743,7 +744,7 @@ class VendorNewOrdersView(LoginRequiredMixin, View):
 
         context = {
             'orders': pending_orders,
-            'status': 'Pending',
+            'status': 'Placed',
             'count': len(pending_orders),
         }
         return render(request, 'Vendor/vendor_new_orders.html', context)
@@ -758,7 +759,7 @@ class VendorOrdersToDeliverView(LoginRequiredMixin, View):
         vendor_order_items = (
             OrderItem.objects
             .filter(product__vendor=request.user, order__status='Confirmed')
-            .select_related('order', 'order__user', 'product')
+            .select_related('order', 'order__user', 'order__payment', 'product')
             .order_by('-order__created_at')
         )
 
@@ -795,7 +796,7 @@ class VendorDeliveredOrdersView(LoginRequiredMixin, View):
         vendor_order_items = (
             OrderItem.objects
             .filter(product__vendor=request.user, order__status='Delivered')
-            .select_related('order', 'order__user', 'product')
+            .select_related('order', 'order__user', 'order__payment', 'product')
             .order_by('-order__created_at')
         )
 

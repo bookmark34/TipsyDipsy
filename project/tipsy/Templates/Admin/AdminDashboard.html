@@ -6,6 +6,7 @@
     <p class="text-muted mb-0">Platform overview and monthly reports.</p>
   </div>
   <div class="d-flex gap-2">
+    <a href="#report" class="btn btn-outline-secondary">View Report</a>
     <a href="{% url 'admin_vendors' %}" class="btn btn-outline-secondary">Manage Vendors</a>
     <a href="{% url 'admin_export_report_pdf' %}" class="btn btn-outline-secondary">Export PDF Report</a>
   </div>
@@ -50,7 +51,7 @@
   </div>
 </div>
 
-<div class="row g-4 mb-4">
+<div id="report" class="row g-4 mb-4" style="scroll-margin-top: 90px;">
   <div class="col-lg-8">
     <div class="card shadow-sm border-0 h-100">
       <div class="card-body">

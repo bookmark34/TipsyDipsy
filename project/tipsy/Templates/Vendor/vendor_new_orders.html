@@ -39,7 +39,7 @@
                     <div class="p-4">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="mb-1" style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--td-text-muted); text-transform: uppercase; opacity: 0.8;">Pending Orders</h6>
+                                <h6 class="mb-1" style="font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; color: var(--td-text-muted); text-transform: uppercase; opacity: 0.8;">New Orders</h6>
                                 <h2 style="color: var(--td-gold); margin: 0; font-size: 2.5rem; font-weight: 700; letter-spacing: -1px;">{{ count }}</h2>
                             </div>
                             <div style="font-size: 2.5rem; color: var(--td-gold); opacity: 0.3;">
@@ -135,6 +135,37 @@
                                 <div>
                                     <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Delivery Fee</small>
                                     <strong style="color: var(--td-brown); font-size: 0.95rem;">NPR {{ entry.order.delivery_fee }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="d-flex align-items-center">
+                                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(201, 163, 86, 0.15); display: flex; align-items: center; justify-content: center; margin-right: 0.75rem;">
+                                    <i class="bi bi-credit-card" style="color: var(--td-gold); font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem; font-weight: 600;">Payment Status</small>
+                                    <strong style="color: var(--td-brown); font-size: 0.95rem;">
+                                        {% if entry.order.payment %}
+                                            {% if entry.order.payment.method == 'cash' %}
+                                                {% if entry.order.status == 'Delivered' %}
+                                                    Paid
+                                                {% else %}
+                                                    Cash on Delivery
+                                                {% endif %}
+                                            {% elif entry.order.payment.method == 'khalti' %}
+                                                {% if entry.order.payment.status == 'paid' or entry.order.status == 'Delivered' %}
+                                                    Paid
+                                                {% else %}
+                                                    Pending
+                                                {% endif %}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </strong>
                                 </div>
                             </div>
                         </div>

@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
-from .models import Order, Notification, OrderItem, CustomUser
+from .models import Order, Notification, OrderItem, CustomUser, Payment
 
 
 @receiver(pre_save, sender=Order)
@@ -25,6 +25,20 @@ def create_order_notifications(sender, instance, created, **kwargs):
     # Get the old status
     old_status = getattr(instance, '_old_status', None)
     new_status = instance.status
+
+    # Ensure payment is marked as paid when the order is delivered.
+    # This is especially important for Cash on Delivery orders.
+    if new_status == 'Delivered':
+        try:
+            payment = instance.payment
+        except Payment.DoesNotExist:
+            payment = None
+
+        if payment and payment.status != 'paid':
+            payment.status = 'paid'
+            if not payment.paid_at:
+                payment.paid_at = timezone.now()
+            payment.save(update_fields=['status', 'paid_at'])
     
     # Only proceed if status actually changed
     if old_status == new_status:
